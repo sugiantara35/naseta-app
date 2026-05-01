@@ -8,11 +8,16 @@ const BORDER = 'rgba(212,175,55,0.2)'
 const CARD_BG = 'rgba(13,46,66,0.6)'
 
 const DIVISI_TABS = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP', 'LAINNYA'] as const
-const ALL_TABS = [...DIVISI_TABS, 'MATERIAL'] as const
+const ALL_TABS = ['REKAPITULASI', ...DIVISI_TABS, 'MATERIAL'] as const
 type Tab = typeof ALL_TABS[number]
 
 function formatRupiah(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
+}
+
+function tabLabel(tab: string) {
+  if (tab === 'REKAPITULASI') return 'Rekapitulasi'
+  return tab.charAt(0) + tab.slice(1).toLowerCase()
 }
 
 function ProjectStatusBadge({ status }: { status: string }) {
@@ -30,9 +35,9 @@ function ProjectStatusBadge({ status }: { status: string }) {
 
 function SpkStatusBadge({ status }: { status: string }) {
   const map: Record<string, React.CSSProperties> = {
-    DRAFT:  { backgroundColor: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.3)' },
-    AKTIF:  { backgroundColor: 'rgba(34,197,94,0.15)',  color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' },
-    SELESAI:{ backgroundColor: 'rgba(212,175,55,0.15)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' },
+    DRAFT:   { backgroundColor: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.3)' },
+    AKTIF:   { backgroundColor: 'rgba(34,197,94,0.15)',   color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' },
+    SELESAI: { backgroundColor: 'rgba(212,175,55,0.15)',  color: '#D4AF37', border: '1px solid rgba(212,175,55,0.3)' },
   }
   return (
     <span style={{ ...(map[status] ?? map.DRAFT), padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }}>
@@ -45,6 +50,7 @@ type SpkRow = {
   id: string
   nomor_spk: string
   deskripsi: string
+  divisi: string
   pp_rap: number | null
   deal_spk: number | null
   status: string
@@ -63,6 +69,29 @@ type MaterialRow = {
   vendors: { nama: string } | null
 }
 
+const thStyle: React.CSSProperties = {
+  padding: '13px 16px',
+  textAlign: 'left',
+  fontSize: '11px',
+  fontWeight: '600',
+  color: GOLD,
+  letterSpacing: '1px',
+  textTransform: 'uppercase',
+  opacity: 0.85,
+  whiteSpace: 'nowrap',
+}
+
+const tdStyle: React.CSSProperties = {
+  padding: '14px 16px',
+  fontSize: '13px',
+  color: CREAM,
+  verticalAlign: 'middle',
+}
+
+function spkTerbayar(spk: SpkRow) {
+  return (spk.spk_payments ?? []).reduce((s, p) => s + (p.jumlah ?? 0), 0)
+}
+
 export default async function ProjectDetailPage({
   params,
   searchParams,
@@ -72,7 +101,7 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params
   const sp = await searchParams
-  const activeTab: Tab = (ALL_TABS.includes(sp.tab as Tab) ? sp.tab : 'PERSIAPAN') as Tab
+  const activeTab: Tab = (ALL_TABS.includes(sp.tab as Tab) ? sp.tab : 'REKAPITULASI') as Tab
 
   const supabase = await createServerSupabaseClient()
 
@@ -85,9 +114,17 @@ export default async function ProjectDetailPage({
   if (projectError || !project) notFound()
 
   let spkList: SpkRow[] = []
+  let allSpk: SpkRow[] = []
   let materialList: MaterialRow[] = []
 
-  if (activeTab === 'MATERIAL') {
+  if (activeTab === 'REKAPITULASI') {
+    const { data } = await supabase
+      .from('spk')
+      .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah)')
+      .eq('project_id', id)
+      .order('created_at', { ascending: true })
+    allSpk = (data as unknown as SpkRow[]) ?? []
+  } else if (activeTab === 'MATERIAL') {
     const { data } = await supabase
       .from('material_purchases')
       .select('id, deskripsi, qty, satuan, harga_satuan, total, vendors(nama)')
@@ -97,31 +134,19 @@ export default async function ProjectDetailPage({
   } else {
     const { data } = await supabase
       .from('spk')
-      .select('id, nomor_spk, deskripsi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah)')
+      .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah)')
       .eq('project_id', id)
       .eq('divisi', activeTab)
       .order('created_at', { ascending: false })
     spkList = (data as unknown as SpkRow[]) ?? []
   }
 
-  const thStyle: React.CSSProperties = {
-    padding: '13px 16px',
-    textAlign: 'left',
-    fontSize: '11px',
-    fontWeight: '600',
-    color: GOLD,
-    letterSpacing: '1px',
-    textTransform: 'uppercase',
-    opacity: 0.85,
-    whiteSpace: 'nowrap',
-  }
-
-  const tdStyle: React.CSSProperties = {
-    padding: '14px 16px',
-    fontSize: '13px',
-    color: CREAM,
-    verticalAlign: 'middle',
-  }
+  // Group allSpk by divisi for REKAPITULASI
+  const rekapByDivisi = DIVISI_TABS.map((divisi, idx) => ({
+    divisi,
+    nomor: idx + 1,
+    rows: allSpk.filter(s => s.divisi === divisi),
+  }))
 
   return (
     <div>
@@ -156,7 +181,7 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: `1px solid ${BORDER}`, paddingBottom: '0' }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: `1px solid ${BORDER}` }}>
         {ALL_TABS.map(tab => {
           const active = tab === activeTab
           return (
@@ -172,14 +197,120 @@ export default async function ProjectDetailPage({
               whiteSpace: 'nowrap',
               transition: 'all 0.15s',
             }}>
-              {tab.charAt(0) + tab.slice(1).toLowerCase()}
+              {tabLabel(tab)}
             </Link>
           )
         })}
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'MATERIAL' ? (
+      {/* ── REKAPITULASI ── */}
+      {activeTab === 'REKAPITULASI' && (() => {
+        const grandPpRap    = allSpk.reduce((s, spk) => s + (spk.pp_rap ?? 0), 0)
+        const grandDeal     = allSpk.reduce((s, spk) => s + (spk.deal_spk ?? 0), 0)
+        const grandTerbayar = allSpk.reduce((s, spk) => s + spkTerbayar(spk), 0)
+        const grandSaldo    = grandDeal - grandTerbayar
+
+        return (
+          <div>
+            {rekapByDivisi.map(({ divisi, nomor, rows }) => {
+              const subPpRap    = rows.reduce((s, spk) => s + (spk.pp_rap ?? 0), 0)
+              const subDeal     = rows.reduce((s, spk) => s + (spk.deal_spk ?? 0), 0)
+              const subTerbayar = rows.reduce((s, spk) => s + spkTerbayar(spk), 0)
+              const subSaldo    = subDeal - subTerbayar
+
+              return (
+                <div key={divisi} style={{ marginBottom: '28px' }}>
+                  {/* Divisi header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                    <span style={{
+                      backgroundColor: 'rgba(212,175,55,0.15)', color: GOLD,
+                      border: `1px solid ${BORDER}`, borderRadius: '6px',
+                      padding: '3px 10px', fontSize: '12px', fontWeight: '700',
+                    }}>
+                      {nomor}
+                    </span>
+                    <h3 style={{ fontSize: '15px', fontWeight: '700', color: GOLD, margin: 0, letterSpacing: '1px' }}>
+                      {divisi}
+                    </h3>
+                  </div>
+
+                  <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '10px', overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                          {['No. SPK', 'Deskripsi', 'Vendor', 'PP/RAP', 'Deal SPK', 'Terbayar', 'Saldo'].map(col => (
+                            <th key={col} style={thStyle}>{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', opacity: 0.35, padding: '24px' }}>
+                              Belum ada SPK
+                            </td>
+                          </tr>
+                        ) : rows.map((spk, i) => {
+                          const terbayar = spkTerbayar(spk)
+                          const saldo = (spk.deal_spk ?? 0) - terbayar
+                          return (
+                            <tr key={spk.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                              <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '12px', color: GOLD }}>{spk.nomor_spk}</td>
+                              <td style={{ ...tdStyle, maxWidth: '220px' }}>{spk.deskripsi}</td>
+                              <td style={{ ...tdStyle, opacity: 0.7 }}>{spk.vendors?.nama ?? '—'}</td>
+                              <td style={{ ...tdStyle, opacity: 0.7 }}>{spk.pp_rap != null ? formatRupiah(spk.pp_rap) : '—'}</td>
+                              <td style={tdStyle}>{spk.deal_spk != null ? formatRupiah(spk.deal_spk) : '—'}</td>
+                              <td style={{ ...tdStyle, color: '#4ade80' }}>{formatRupiah(terbayar)}</td>
+                              <td style={{ ...tdStyle, color: saldo < 0 ? '#f87171' : CREAM, fontWeight: '600' }}>{formatRupiah(saldo)}</td>
+                            </tr>
+                          )
+                        })}
+
+                        {/* Subtotal row */}
+                        <tr style={{ backgroundColor: 'rgba(212,175,55,0.07)', borderTop: `1px solid ${BORDER}` }}>
+                          <td colSpan={3} style={{ ...tdStyle, fontWeight: '700', fontSize: '12px', color: GOLD, opacity: 0.85, letterSpacing: '0.5px' }}>
+                            SUBTOTAL {divisi}
+                          </td>
+                          <td style={{ ...tdStyle, fontWeight: '700', opacity: 0.8 }}>{formatRupiah(subPpRap)}</td>
+                          <td style={{ ...tdStyle, fontWeight: '700' }}>{formatRupiah(subDeal)}</td>
+                          <td style={{ ...tdStyle, fontWeight: '700', color: '#4ade80' }}>{formatRupiah(subTerbayar)}</td>
+                          <td style={{ ...tdStyle, fontWeight: '700', color: subSaldo < 0 ? '#f87171' : CREAM }}>{formatRupiah(subSaldo)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* Grand Total */}
+            <div style={{
+              backgroundColor: 'rgba(212,175,55,0.12)',
+              border: `1px solid rgba(212,175,55,0.4)`,
+              borderRadius: '10px',
+              overflow: 'auto',
+              marginTop: '8px',
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                <tbody>
+                  <tr>
+                    <td colSpan={3} style={{ ...tdStyle, fontWeight: '800', fontSize: '13px', color: GOLD, letterSpacing: '1.5px', padding: '16px 16px' }}>
+                      GRAND TOTAL
+                    </td>
+                    <td style={{ ...tdStyle, fontWeight: '800', color: GOLD, fontSize: '14px', padding: '16px 16px' }}>{formatRupiah(grandPpRap)}</td>
+                    <td style={{ ...tdStyle, fontWeight: '800', color: GOLD, fontSize: '14px', padding: '16px 16px' }}>{formatRupiah(grandDeal)}</td>
+                    <td style={{ ...tdStyle, fontWeight: '800', color: '#4ade80', fontSize: '14px', padding: '16px 16px' }}>{formatRupiah(grandTerbayar)}</td>
+                    <td style={{ ...tdStyle, fontWeight: '800', color: grandSaldo < 0 ? '#f87171' : GOLD, fontSize: '14px', padding: '16px 16px' }}>{formatRupiah(grandSaldo)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── MATERIAL ── */}
+      {activeTab === 'MATERIAL' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
             <Link href={`/dashboard/projects/${id}/material/tambah`} style={{
@@ -215,7 +346,10 @@ export default async function ProjectDetailPage({
             </table>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* ── DIVISI TABS (PERSIAPAN, STRUKTUR, dll) ── */}
+      {DIVISI_TABS.includes(activeTab as typeof DIVISI_TABS[number]) && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
             <Link href={`/dashboard/projects/${id}/spk/tambah?divisi=${activeTab}`} style={{
@@ -240,7 +374,7 @@ export default async function ProjectDetailPage({
                     Belum ada SPK untuk divisi ini.
                   </td></tr>
                 ) : spkList.map((spk, i) => {
-                  const terbayar = (spk.spk_payments ?? []).reduce((sum: number, p: { jumlah: number }) => sum + (p.jumlah ?? 0), 0)
+                  const terbayar = spkTerbayar(spk)
                   const saldo = (spk.deal_spk ?? 0) - terbayar
                   return (
                     <tr key={spk.id} style={{ borderBottom: i < spkList.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
@@ -267,11 +401,10 @@ export default async function ProjectDetailPage({
             </table>
           </div>
 
-          {/* Total row */}
           {spkList.length > 0 && (() => {
-            const totalDeal = spkList.reduce((s, spk) => s + (spk.deal_spk ?? 0), 0)
-            const totalTerbayar = spkList.reduce((s, spk) => s + (spk.spk_payments ?? []).reduce((ps: number, p: { jumlah: number }) => ps + (p.jumlah ?? 0), 0), 0)
-            const totalSaldo = totalDeal - totalTerbayar
+            const totalDeal     = spkList.reduce((s, spk) => s + (spk.deal_spk ?? 0), 0)
+            const totalTerbayar = spkList.reduce((s, spk) => s + spkTerbayar(spk), 0)
+            const totalSaldo    = totalDeal - totalTerbayar
             return (
               <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
                 {[
