@@ -35,6 +35,29 @@ type RapItem = {
   total_rap: number | null
 }
 
+type SpkLink = { rap_item_id: string | null; deal_spk: number | null }
+
+function RapStatusBadge({ saldo, totalRap }: { saldo: number; totalRap: number }) {
+  const pct = totalRap > 0 ? saldo / totalRap : (saldo >= 0 ? 1 : -1)
+  let label: string
+  let style: React.CSSProperties
+  if (saldo < 0) {
+    label = 'OVERBUDGET'
+    style = { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }
+  } else if (pct <= 0.1) {
+    label = 'WARNING'
+    style = { backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' }
+  } else {
+    label = 'AMAN'
+    style = { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }
+  }
+  return (
+    <span style={{ ...style, padding: '3px 9px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
+      {label}
+    </span>
+  )
+}
+
 const thStyle: React.CSSProperties = {
   padding: '13px 16px',
   textAlign: 'left',
@@ -65,14 +88,28 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
 
   if (projectError || !project) notFound()
 
-  const { data: rapData } = await supabase
-    .from('rap_items')
-    .select('id, divisi, sub_divisi, deskripsi, satuan, volume, harga_satuan, total_rap')
-    .eq('project_id', id)
-    .order('created_at', { ascending: true })
+  const [{ data: rapData }, { data: spkData }] = await Promise.all([
+    supabase
+      .from('rap_items')
+      .select('id, divisi, sub_divisi, deskripsi, satuan, volume, harga_satuan, total_rap')
+      .eq('project_id', id)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('spk')
+      .select('rap_item_id, deal_spk')
+      .eq('project_id', id)
+      .not('rap_item_id', 'is', null),
+  ])
 
   const items: RapItem[] = (rapData as RapItem[]) ?? []
+  const spkLinks: SpkLink[] = (spkData as SpkLink[]) ?? []
   const grandTotal = items.reduce((s, i) => s + (i.total_rap ?? 0), 0)
+
+  function spkTerbitForItem(itemId: string) {
+    return spkLinks
+      .filter(s => s.rap_item_id === itemId)
+      .reduce((sum, s) => sum + (s.deal_spk ?? 0), 0)
+  }
 
   async function deleteRapItemAction(formData: FormData) {
     'use server'
@@ -109,6 +146,8 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
       {RAP_DIVISI.map(({ nomor, nama }) => {
         const divisiItems = items.filter(i => i.divisi === nama)
         const subtotal = divisiItems.reduce((s, i) => s + (i.total_rap ?? 0), 0)
+        const subtotalSpk = divisiItems.reduce((s, i) => s + spkTerbitForItem(i.id), 0)
+        const subtotalSaldo = subtotal - subtotalSpk
 
         const subDivisiGroups: { subDivisi: string | null; items: RapItem[] }[] = []
         for (const item of divisiItems) {
@@ -145,10 +184,10 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
             </div>
 
             <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '10px', overflow: 'auto', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '820px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1020px' }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: '#F5F0E8' }}>
-                    {['No', 'Deskripsi', 'Satuan', 'Volume', 'Harga Satuan', 'Total RAP', 'Aksi'].map(col => (
+                    {['No', 'Deskripsi', 'Satuan', 'Volume', 'Harga Satuan', 'Total RAP', 'SPK Terbit', 'Saldo RAP', 'Status', 'Aksi'].map(col => (
                       <th key={col} style={col === 'Aksi' ? { ...thStyle, textAlign: 'right' as const } : thStyle}>{col}</th>
                     ))}
                   </tr>
@@ -156,7 +195,7 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                 <tbody>
                   {divisiItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: SECONDARY, padding: '24px' }}>
+                      <td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: SECONDARY, padding: '24px' }}>
                         Belum ada item RAP
                       </td>
                     </tr>
@@ -166,7 +205,7 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                         <React.Fragment key={subDivisi ?? `g${gIdx}`}>
                           {subDivisi && (
                             <tr style={{ backgroundColor: '#F5F0E8', borderBottom: `1px solid ${BORDER}` }}>
-                              <td colSpan={7} style={{
+                              <td colSpan={10} style={{
                                 ...tdStyle,
                                 fontStyle: 'italic',
                                 color: SECONDARY,
@@ -182,6 +221,8 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                           {groupItems.map(item => {
                             rowNo++
                             const no = rowNo
+                            const spkTerbit = spkTerbitForItem(item.id)
+                            const saldo = (item.total_rap ?? 0) - spkTerbit
                             return (
                               <tr key={item.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
                                 <td style={{ ...tdStyle, color: SECONDARY, width: '48px' }}>{no}</td>
@@ -190,6 +231,17 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                                 <td style={{ ...tdStyle, color: SECONDARY }}>{item.volume ?? '—'}</td>
                                 <td style={{ ...tdStyle, color: SECONDARY }}>{item.harga_satuan != null ? formatRupiah(item.harga_satuan) : '—'}</td>
                                 <td style={{ ...tdStyle, color: GOLD, fontWeight: '600' }}>{item.total_rap != null ? formatRupiah(item.total_rap) : '—'}</td>
+                                <td style={{ ...tdStyle, color: spkTerbit > 0 ? '#dc2626' : SECONDARY }}>
+                                  {spkTerbit > 0 ? formatRupiah(spkTerbit) : '—'}
+                                </td>
+                                <td style={{ ...tdStyle, fontWeight: '600', color: saldo < 0 ? '#dc2626' : '#166534' }}>
+                                  {formatRupiah(saldo)}
+                                </td>
+                                <td style={tdStyle}>
+                                  {item.total_rap != null ? (
+                                    <RapStatusBadge saldo={saldo} totalRap={item.total_rap} />
+                                  ) : <span style={{ color: SECONDARY }}>—</span>}
+                                </td>
                                 <td style={{ ...tdStyle, textAlign: 'right' }}>
                                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                     <Link href={`/dashboard/projects/${id}/rap/${item.id}/edit`} style={{
@@ -224,7 +276,13 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                           SUBTOTAL {nama}
                         </td>
                         <td style={{ ...tdStyle, fontWeight: '700', color: GOLD }}>{formatRupiah(subtotal)}</td>
-                        <td />
+                        <td style={{ ...tdStyle, fontWeight: '700', color: subtotalSpk > 0 ? '#dc2626' : SECONDARY }}>
+                          {subtotalSpk > 0 ? formatRupiah(subtotalSpk) : '—'}
+                        </td>
+                        <td style={{ ...tdStyle, fontWeight: '700', color: subtotalSaldo < 0 ? '#dc2626' : '#166534' }}>
+                          {formatRupiah(subtotalSaldo)}
+                        </td>
+                        <td /><td />
                       </tr>
                     </>
                   )}
@@ -243,7 +301,7 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
         overflow: 'auto',
         marginTop: '8px',
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '820px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1020px' }}>
           <tbody>
             <tr>
               <td colSpan={5} style={{ ...tdStyle, fontWeight: '800', fontSize: '13px', color: NAVY, letterSpacing: '1px', padding: '16px' }}>
@@ -252,7 +310,7 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
               <td style={{ ...tdStyle, fontWeight: '800', color: GOLD, fontSize: '14px', padding: '16px' }}>
                 {formatRupiah(grandTotal)}
               </td>
-              <td style={{ padding: '16px' }} />
+              <td colSpan={4} style={{ padding: '16px' }} />
             </tr>
           </tbody>
         </table>
