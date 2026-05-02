@@ -14,7 +14,7 @@ const KATEGORI_OPTIONS = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP'] as const
 const SUB_KATEGORI_MAP: Record<string, string[]> = {
   PERSIAPAN:  ['Pek Site Clearing', 'Pek Pembuatan Bedeng', 'Pek Sumur Bor', 'Tenaga Harian'],
   STRUKTUR:   ['Struktur Utama', 'Struktur Baja', 'Waterproofing'],
-  ARSITEKTUR: ['Pasangan Dinding', 'Plester Aci', 'Pek Pasang Ceiling', 'Pasang Keramik/Granite Tile/Batu Alam', 'Finishing Cat dan Politur', 'Pek Daun Pintu Jendela'],
+  ARSITEKTUR: ['Pasangan Dinding', 'Plester Aci', 'Pek Pasang Ceiling', 'Pasang Keramik / Granite Tile / Batu Alam', 'Finishing Cat dan Politur', 'Pek Daun Pintu Jendela'],
   MEP:        ['Pek Mekanikal', 'Pek Elektrikal', 'Pek Plumbing'],
 }
 
