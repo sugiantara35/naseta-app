@@ -36,6 +36,15 @@ type Payment = {
   created_at: string
 }
 
+type PengajuanItem = {
+  id: string
+  jumlah_diajukan: number
+  jumlah_disetujui: number | null
+  status: string
+  catatan_pengaju: string | null
+  created_at: string
+}
+
 type SpkDetail = {
   id: string
   nomor_spk: string
@@ -48,6 +57,34 @@ type SpkDetail = {
   project_id: string
   vendors: { nama: string } | null
   spk_payments: Payment[]
+  pengajuan: PengajuanItem[]
+}
+
+const PENGAJUAN_BADGE: Record<string, React.CSSProperties> = {
+  MENUNGGU_SM:      { backgroundColor: '#fef9c3', color: '#854d0e' },
+  DISETUJUI_SM:     { backgroundColor: '#dbeafe', color: '#1e40af' },
+  RENUMERASI_SM:    { backgroundColor: '#dbeafe', color: '#1e40af' },
+  DITOLAK_SM:       { backgroundColor: '#fee2e2', color: '#991b1b' },
+  DITOLAK_FINANCE:  { backgroundColor: '#fee2e2', color: '#991b1b' },
+  DITOLAK_DIREKTUR: { backgroundColor: '#fee2e2', color: '#991b1b' },
+  DISETUJUI_FINANCE:   { backgroundColor: '#e0e7ff', color: '#3730a3' },
+  DISETUJUI_DIREKTUR:  { backgroundColor: '#dcfce7', color: '#166534' },
+  SELESAI:             { backgroundColor: '#f0fdf4', color: '#15803d' },
+}
+
+const PENGAJUAN_LABEL: Record<string, string> = {
+  MENUNGGU_SM: 'Menunggu SM', DISETUJUI_SM: 'Disetujui SM', RENUMERASI_SM: 'Renumerasi SM',
+  DITOLAK_SM: 'Ditolak SM', DITOLAK_FINANCE: 'Ditolak Finance', DITOLAK_DIREKTUR: 'Ditolak Direktur',
+  DISETUJUI_FINANCE: 'Disetujui Finance', DISETUJUI_DIREKTUR: 'Disetujui Direktur', SELESAI: 'Selesai',
+}
+
+function PengajuanStatusBadge({ status }: { status: string }) {
+  const style = PENGAJUAN_BADGE[status] ?? { backgroundColor: '#f3f4f6', color: '#374151' }
+  return (
+    <span style={{ ...style, padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }}>
+      {PENGAJUAN_LABEL[status] ?? status}
+    </span>
+  )
 }
 
 const inputStyle: React.CSSProperties = {
@@ -70,13 +107,19 @@ export default function SpkDetailPage() {
   const [payError, setPayError] = useState('')
   const [paying, setPaying] = useState(false)
 
+  const [showPengajuanForm, setShowPengajuanForm] = useState(false)
+  const [pengajuanForm, setPengajuanForm] = useState({ jumlah: '', catatan: '' })
+  const [pengajuanError, setPengajuanError] = useState('')
+  const [creatingPengajuan, setCreatingPengajuan] = useState(false)
+
   const fetchSpk = useCallback(async () => {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('spk')
-      .select('*, vendors(nama), spk_payments(*)')
+      .select('*, vendors(nama), spk_payments(*), pengajuan(*)')
       .eq('id', spkId)
       .order('created_at', { ascending: false, referencedTable: 'spk_payments' })
+      .order('created_at', { ascending: false, referencedTable: 'pengajuan' })
       .single()
 
     if (error || !data) {
@@ -111,6 +154,29 @@ export default function SpkDetailPage() {
 
     setPayForm({ jumlah: '', tanggal: '', catatan: '' })
     setPaying(false)
+    await fetchSpk()
+  }
+
+  async function handleCreatePengajuan(e: React.FormEvent) {
+    e.preventDefault()
+    setPengajuanError('')
+    if (!pengajuanForm.jumlah) return setPengajuanError('Jumlah diajukan wajib diisi.')
+    setCreatingPengajuan(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('pengajuan').insert({
+      spk_id: spkId,
+      jumlah_diajukan: parseFloat(pengajuanForm.jumlah),
+      catatan_pengaju: pengajuanForm.catatan.trim() || null,
+      status: 'MENUNGGU_SM',
+    })
+    if (error) {
+      setPengajuanError(error.message)
+      setCreatingPengajuan(false)
+      return
+    }
+    setPengajuanForm({ jumlah: '', catatan: '' })
+    setShowPengajuanForm(false)
+    setCreatingPengajuan(false)
     await fetchSpk()
   }
 
@@ -189,6 +255,97 @@ export default function SpkDetailPage() {
                   <td style={{ ...tdStyle, color: SECONDARY, whiteSpace: 'nowrap' }}>{p.tanggal ?? '—'}</td>
                   <td style={{ ...tdStyle, color: '#166534', fontWeight: '600' }}>{formatRupiah(p.jumlah)}</td>
                   <td style={{ ...tdStyle, color: SECONDARY }}>{p.catatan ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pengajuan Pembayaran */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '600', color: NAVY, margin: 0 }}>Pengajuan Pembayaran</h2>
+          {!showPengajuanForm && (
+            <button
+              onClick={() => setShowPengajuanForm(true)}
+              style={{ padding: '8px 16px', backgroundColor: NAVY, color: '#FAF5EB', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', letterSpacing: '0.3px' }}
+            >
+              + Buat Pengajuan
+            </button>
+          )}
+        </div>
+
+        {/* Create form */}
+        {showPengajuanForm && (
+          <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '20px', marginBottom: '16px', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '700', color: NAVY, margin: '0 0 16px 0' }}>Buat Pengajuan Baru</h3>
+            <form onSubmit={handleCreatePengajuan}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: SECONDARY, marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>
+                    Jumlah Diajukan (Rp) *
+                  </label>
+                  <input type="number" value={pengajuanForm.jumlah} onChange={e => setPengajuanForm(p => ({ ...p, jumlah: e.target.value }))}
+                    placeholder="0" min="0" step="1000" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: SECONDARY, marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>
+                    Catatan
+                  </label>
+                  <input value={pengajuanForm.catatan} onChange={e => setPengajuanForm(p => ({ ...p, catatan: e.target.value }))}
+                    placeholder="Opsional" style={inputStyle} />
+                </div>
+              </div>
+              {pengajuanError && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px' }}>{pengajuanError}</p>}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button type="submit" disabled={creatingPengajuan} style={{
+                  padding: '10px 20px', backgroundColor: creatingPengajuan ? 'rgba(13,46,66,0.4)' : NAVY,
+                  color: '#FAF5EB', border: 'none', borderRadius: '8px', fontSize: '13px',
+                  fontWeight: '700', cursor: creatingPengajuan ? 'not-allowed' : 'pointer',
+                }}>
+                  {creatingPengajuan ? 'Menyimpan...' : 'Kirim Pengajuan'}
+                </button>
+                <button type="button" onClick={() => { setShowPengajuanForm(false); setPengajuanForm({ jumlah: '', catatan: '' }); setPengajuanError('') }}
+                  style={{ padding: '10px 20px', backgroundColor: 'transparent', color: SECONDARY, border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Pengajuan list */}
+        <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', overflowX: 'auto', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: '#F5F0E8' }}>
+                {['Tanggal', 'Jumlah Diajukan', 'Jumlah Disetujui', 'Status', 'Aksi'].map(col => (
+                  <th key={col} style={thStyle}>{col}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(spk.pengajuan ?? []).length === 0 ? (
+                <tr><td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: SECONDARY, padding: '28px' }}>Belum ada pengajuan.</td></tr>
+              ) : (spk.pengajuan ?? []).map((p, i) => (
+                <tr key={p.id} style={{ borderBottom: i < (spk.pengajuan ?? []).length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                  <td style={{ ...tdStyle, color: SECONDARY, whiteSpace: 'nowrap' }}>
+                    {new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </td>
+                  <td style={{ ...tdStyle, fontWeight: '600' }}>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(p.jumlah_diajukan)}</td>
+                  <td style={{ ...tdStyle, color: p.jumlah_disetujui != null ? '#166534' : SECONDARY, fontWeight: p.jumlah_disetujui != null ? '600' : '400' }}>
+                    {p.jumlah_disetujui != null ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(p.jumlah_disetujui) : '—'}
+                  </td>
+                  <td style={tdStyle}><PengajuanStatusBadge status={p.status} /></td>
+                  <td style={tdStyle}>
+                    <button
+                      onClick={() => router.push(`/dashboard/pengajuan/${p.id}`)}
+                      style={{ padding: '5px 12px', backgroundColor: 'transparent', border: `1px solid ${BORDER}`, borderRadius: '6px', color: NAVY, fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      Lihat
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
