@@ -7,6 +7,22 @@ const SECONDARY = '#1A3B52'
 const BORDER = 'rgba(13,46,66,0.15)'
 const CARD_BG = '#FFFFFF'
 
+const KATEGORI_STYLE: Record<string, React.CSSProperties> = {
+  PERSIAPAN:  { backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' },
+  STRUKTUR:   { backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' },
+  ARSITEKTUR: { backgroundColor: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' },
+  MEP:        { backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' },
+}
+
+function KategoriBadge({ kategori }: { kategori: string }) {
+  const style = KATEGORI_STYLE[kategori] ?? { backgroundColor: '#f9fafb', color: '#374151', border: '1px solid #e5e7eb' }
+  return (
+    <span style={{ ...style, padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }}>
+      {kategori}
+    </span>
+  )
+}
+
 function formatRupiah(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
 }
@@ -83,7 +99,9 @@ export default async function HargaSewaPage() {
               <tr key={item.id} style={{ borderBottom: i < items.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                 <td style={{ ...tdStyle, color: SECONDARY, width: '48px' }}>{i + 1}</td>
                 <td style={{ ...tdStyle, fontWeight: '500' }}>{item.nama_item}</td>
-                <td style={{ ...tdStyle, color: SECONDARY }}>{item.kategori ?? '—'}</td>
+                <td style={tdStyle}>
+                  {item.kategori ? <KategoriBadge kategori={item.kategori} /> : <span style={{ color: SECONDARY }}>—</span>}
+                </td>
                 <td style={{ ...tdStyle, color: SECONDARY }}>{item.satuan ?? '—'}</td>
                 <td style={{ ...tdStyle, color: '#166534', fontWeight: '600' }}>
                   {item.harga != null ? formatRupiah(item.harga) : '—'}

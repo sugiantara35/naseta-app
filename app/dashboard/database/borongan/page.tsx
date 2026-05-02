@@ -7,6 +7,22 @@ const SECONDARY = '#1A3B52'
 const BORDER = 'rgba(13,46,66,0.15)'
 const CARD_BG = '#FFFFFF'
 
+const KATEGORI_STYLE: Record<string, React.CSSProperties> = {
+  PERSIAPAN:  { backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' },
+  STRUKTUR:   { backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' },
+  ARSITEKTUR: { backgroundColor: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' },
+  MEP:        { backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' },
+}
+
+function KategoriBadge({ kategori }: { kategori: string }) {
+  const style = KATEGORI_STYLE[kategori] ?? { backgroundColor: '#f9fafb', color: '#374151', border: '1px solid #e5e7eb' }
+  return (
+    <span style={{ ...style, padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }}>
+      {kategori}
+    </span>
+  )
+}
+
 function formatRupiah(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
 }
@@ -21,6 +37,7 @@ async function deleteItem(id: string) {
 type HargaBorongan = {
   id: string
   nama_pekerjaan: string
+  kategori: string | null
   satuan: string | null
   harga: number | null
   keterangan_lingkup: string | null
@@ -38,7 +55,7 @@ export default async function HargaBoronganPage() {
   const supabase = await createServerSupabaseClient()
   const { data: items, error } = await supabase
     .from('harga_borongan')
-    .select('id, nama_pekerjaan, satuan, harga, keterangan_lingkup, berlaku_mulai, catatan')
+    .select('id, nama_pekerjaan, kategori, satuan, harga, keterangan_lingkup, berlaku_mulai, catatan')
     .order('nama_pekerjaan', { ascending: true })
 
   return (
@@ -67,7 +84,7 @@ export default async function HargaBoronganPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '680px' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: '#F5F0E8' }}>
-              {['No', 'Nama Pekerjaan', 'Satuan', 'Harga', 'Lingkup', 'Berlaku Mulai', 'Aksi'].map(col => (
+              {['No', 'Nama Pekerjaan', 'Kategori', 'Satuan', 'Harga', 'Lingkup', 'Berlaku Mulai', 'Aksi'].map(col => (
                 <th key={col} style={thStyle}>{col}</th>
               ))}
             </tr>
@@ -75,7 +92,7 @@ export default async function HargaBoronganPage() {
           <tbody>
             {!items || items.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: SECONDARY, fontSize: '14px' }}>
+                <td colSpan={8} style={{ padding: '48px 20px', textAlign: 'center', color: SECONDARY, fontSize: '14px' }}>
                   Belum ada data. Klik &quot;+ Tambah&quot; untuk mulai.
                 </td>
               </tr>
@@ -83,6 +100,9 @@ export default async function HargaBoronganPage() {
               <tr key={item.id} style={{ borderBottom: i < items.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                 <td style={{ ...tdStyle, color: SECONDARY, width: '48px' }}>{i + 1}</td>
                 <td style={{ ...tdStyle, fontWeight: '500' }}>{item.nama_pekerjaan}</td>
+                <td style={tdStyle}>
+                  {item.kategori ? <KategoriBadge kategori={item.kategori} /> : <span style={{ color: SECONDARY }}>—</span>}
+                </td>
                 <td style={{ ...tdStyle, color: SECONDARY }}>{item.satuan ?? '—'}</td>
                 <td style={{ ...tdStyle, color: '#166534', fontWeight: '600' }}>
                   {item.harga != null ? formatRupiah(item.harga) : '—'}

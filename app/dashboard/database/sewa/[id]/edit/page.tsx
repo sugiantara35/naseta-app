@@ -9,6 +9,8 @@ const SECONDARY = '#1A3B52'
 const BORDER = 'rgba(13,46,66,0.2)'
 const CARD_BG = '#FFFFFF'
 
+const KATEGORI_OPTIONS = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP'] as const
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '20px' }}>
@@ -54,7 +56,7 @@ export default function EditHargaSewaPage() {
     fetch()
   }, [id])
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
     setForm(prev => ({ ...prev, [name]: value }))
   }
@@ -101,8 +103,13 @@ export default function EditHargaSewaPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Kategori">
-              <input name="kategori" value={form.kategori} onChange={handleChange}
-                placeholder="Contoh: Alat Berat, Perancah" style={inputStyle} />
+              <select name="kategori" value={form.kategori} onChange={handleChange}
+                style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih —</option>
+                {KATEGORI_OPTIONS.map(k => (
+                  <option key={k} value={k} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{k}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Satuan">
               <input name="satuan" value={form.satuan} onChange={handleChange}

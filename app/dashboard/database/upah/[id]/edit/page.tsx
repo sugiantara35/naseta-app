@@ -9,6 +9,8 @@ const SECONDARY = '#1A3B52'
 const BORDER = 'rgba(13,46,66,0.2)'
 const CARD_BG = '#FFFFFF'
 
+const KATEGORI_OPTIONS = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP'] as const
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '20px' }}>
@@ -31,7 +33,7 @@ export default function EditHargaUpahPage() {
   const params = useParams()
   const id = params.id as string
 
-  const [form, setForm] = useState({ nama_pekerjaan: '', satuan: '', harga: '', berlaku_mulai: '', catatan: '' })
+  const [form, setForm] = useState({ nama_pekerjaan: '', kategori: '', satuan: '', harga: '', berlaku_mulai: '', catatan: '' })
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -43,6 +45,7 @@ export default function EditHargaUpahPage() {
       if (error || !data) { setError('Data tidak ditemukan.'); setLoadingData(false); return }
       setForm({
         nama_pekerjaan: data.nama_pekerjaan ?? '',
+        kategori: data.kategori ?? '',
         satuan: data.satuan ?? '',
         harga: data.harga != null ? String(data.harga) : '',
         berlaku_mulai: data.berlaku_mulai ?? '',
@@ -53,7 +56,7 @@ export default function EditHargaUpahPage() {
     fetch()
   }, [id])
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
     setForm(prev => ({ ...prev, [name]: value }))
   }
@@ -67,6 +70,7 @@ export default function EditHargaUpahPage() {
     const supabase = createClient()
     const { error } = await supabase.from('harga_upah').update({
       nama_pekerjaan: form.nama_pekerjaan.trim(),
+      kategori: form.kategori || null,
       satuan: form.satuan.trim() || null,
       harga: form.harga ? parseFloat(form.harga) : null,
       berlaku_mulai: form.berlaku_mulai || null,
@@ -95,6 +99,16 @@ export default function EditHargaUpahPage() {
           <Field label="Nama Pekerjaan *">
             <input name="nama_pekerjaan" value={form.nama_pekerjaan} onChange={handleChange}
               placeholder="Contoh: Tukang Batu" style={inputStyle} />
+          </Field>
+
+          <Field label="Kategori">
+            <select name="kategori" value={form.kategori} onChange={handleChange}
+              style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Kategori —</option>
+              {KATEGORI_OPTIONS.map(k => (
+                <option key={k} value={k} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{k}</option>
+              ))}
+            </select>
           </Field>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
