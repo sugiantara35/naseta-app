@@ -9,6 +9,15 @@ const SECONDARY = '#1A3B52'
 const BORDER = 'rgba(13,46,66,0.2)'
 const CARD_BG = '#FFFFFF'
 
+const KATEGORI_OPTIONS = [
+  { value: 'GALIAN_C',       label: 'Galian C' },
+  { value: 'BESI',           label: 'Besi' },
+  { value: 'KAYU',           label: 'Kayu' },
+  { value: 'MATERIAL_UMUM',  label: 'Material Umum' },
+  { value: 'MEP',            label: 'MEP' },
+  { value: 'LAINNYA',        label: 'Lainnya' },
+]
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '20px' }}>
@@ -28,11 +37,11 @@ const inputStyle: React.CSSProperties = {
 
 export default function TambahHargaMaterialPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ nama_material: '', satuan: '', harga: '', berlaku_mulai: '', catatan: '' })
+  const [form, setForm] = useState({ nama_material: '', kategori: '', satuan: '', harga: '', berlaku_mulai: '', catatan: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
     setForm(prev => ({ ...prev, [name]: value }))
   }
@@ -46,6 +55,7 @@ export default function TambahHargaMaterialPage() {
     const supabase = createClient()
     const { error } = await supabase.from('harga_material').insert({
       nama_material: form.nama_material.trim(),
+      kategori: form.kategori || null,
       satuan: form.satuan.trim() || null,
       harga: form.harga ? parseFloat(form.harga) : null,
       berlaku_mulai: form.berlaku_mulai || null,
@@ -72,6 +82,16 @@ export default function TambahHargaMaterialPage() {
           <Field label="Nama Material *">
             <input name="nama_material" value={form.nama_material} onChange={handleChange}
               placeholder="Contoh: Semen Portland" style={inputStyle} />
+          </Field>
+
+          <Field label="Kategori">
+            <select name="kategori" value={form.kategori} onChange={handleChange}
+              style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Kategori —</option>
+              {KATEGORI_OPTIONS.map(k => (
+                <option key={k.value} value={k.value} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{k.label}</option>
+              ))}
+            </select>
           </Field>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

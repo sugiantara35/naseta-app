@@ -7,6 +7,34 @@ const SECONDARY = '#1A3B52'
 const BORDER = 'rgba(13,46,66,0.15)'
 const CARD_BG = '#FFFFFF'
 
+const KATEGORI_LABEL: Record<string, string> = {
+  GALIAN_C:      'Galian C',
+  BESI:          'Besi',
+  KAYU:          'Kayu',
+  MATERIAL_UMUM: 'Material Umum',
+  MEP:           'MEP',
+  LAINNYA:       'Lainnya',
+}
+
+const KATEGORI_STYLE: Record<string, React.CSSProperties> = {
+  GALIAN_C:      { backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' },
+  BESI:          { backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' },
+  KAYU:          { backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' },
+  MATERIAL_UMUM: { backgroundColor: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' },
+  MEP:           { backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' },
+  LAINNYA:       { backgroundColor: '#f9fafb', color: '#374151', border: '1px solid #e5e7eb' },
+}
+
+function KategoriBadge({ kategori }: { kategori: string }) {
+  const style = KATEGORI_STYLE[kategori] ?? KATEGORI_STYLE.LAINNYA
+  const label = KATEGORI_LABEL[kategori] ?? kategori
+  return (
+    <span style={{ ...style, padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }}>
+      {label}
+    </span>
+  )
+}
+
 function formatRupiah(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
 }
@@ -21,6 +49,7 @@ async function deleteItem(id: string) {
 type HargaMaterial = {
   id: string
   nama_material: string
+  kategori: string | null
   satuan: string | null
   harga: number | null
   berlaku_mulai: string | null
@@ -37,7 +66,7 @@ export default async function HargaMaterialPage() {
   const supabase = await createServerSupabaseClient()
   const { data: items, error } = await supabase
     .from('harga_material')
-    .select('id, nama_material, satuan, harga, berlaku_mulai, catatan')
+    .select('id, nama_material, kategori, satuan, harga, berlaku_mulai, catatan')
     .order('nama_material', { ascending: true })
 
   return (
@@ -66,7 +95,7 @@ export default async function HargaMaterialPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: '#F5F0E8' }}>
-              {['No', 'Nama Material', 'Satuan', 'Harga', 'Berlaku Mulai', 'Aksi'].map(col => (
+              {['No', 'Nama Material', 'Kategori', 'Satuan', 'Harga', 'Berlaku Mulai', 'Aksi'].map(col => (
                 <th key={col} style={thStyle}>{col}</th>
               ))}
             </tr>
@@ -74,7 +103,7 @@ export default async function HargaMaterialPage() {
           <tbody>
             {!items || items.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '48px 20px', textAlign: 'center', color: SECONDARY, fontSize: '14px' }}>
+                <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: SECONDARY, fontSize: '14px' }}>
                   Belum ada data. Klik &quot;+ Tambah&quot; untuk mulai.
                 </td>
               </tr>
@@ -82,6 +111,9 @@ export default async function HargaMaterialPage() {
               <tr key={item.id} style={{ borderBottom: i < items.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                 <td style={{ ...tdStyle, color: SECONDARY, width: '48px' }}>{i + 1}</td>
                 <td style={{ ...tdStyle, fontWeight: '500' }}>{item.nama_material}</td>
+                <td style={tdStyle}>
+                  {item.kategori ? <KategoriBadge kategori={item.kategori} /> : <span style={{ color: SECONDARY }}>—</span>}
+                </td>
                 <td style={{ ...tdStyle, color: SECONDARY }}>{item.satuan ?? '—'}</td>
                 <td style={{ ...tdStyle, color: '#166534', fontWeight: '600' }}>
                   {item.harga != null ? formatRupiah(item.harga) : '—'}
