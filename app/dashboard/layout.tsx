@@ -85,10 +85,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Close mobile sidebar on route change
+  // Close sidebar whenever route changes
   useEffect(() => {
     setSidebarOpen(false)
   }, [pathname])
+
+  function closeSidebar() {
+    setSidebarOpen(false)
+  }
 
   async function handleLogout() {
     const supabase = createClient()
@@ -135,172 +139,171 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
-  const sidebarContent = (
-    <>
-      {/* Logo */}
-      <div style={{ padding: '28px 20px 24px', borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ fontSize: '20px', fontWeight: '700', color: GOLD, letterSpacing: '5px' }}>
-          NASETA
-        </div>
-        <div style={{ fontSize: '11px', color: CREAM, opacity: 0.5, marginTop: '4px', letterSpacing: '0.5px' }}>
-          PT Upadana Semesta
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav style={{ flex: 1, padding: '16px 12px' }}>
-        <Link href="/dashboard/projects" style={menuItemStyle('/dashboard/projects')}>
-          <FolderIcon />
-          Projects
-        </Link>
-
-        <div style={{ marginTop: '4px' }}>
-          <button
-            onClick={() => setDbOpen(!dbOpen)}
-            style={{
-              ...menuItemStyle('/dashboard/database'),
-              width: '100%',
-              border: 'none',
-              background: dbOpen ? ACTIVE_BG : 'transparent',
-              justifyContent: 'space-between',
-              color: dbOpen ? GOLD : CREAM,
-              opacity: 1,
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: dbOpen ? 1 : 0.7 }}>
-              <DatabaseIcon />
-              Database
-            </span>
-            <ChevronIcon open={dbOpen} />
-          </button>
-
-          {dbOpen && (
-            <div style={{ marginTop: '2px' }}>
-              <Link href="/dashboard/database/upah" style={subMenuItemStyle('/dashboard/database/upah')}>
-                Harga Upah
-              </Link>
-              <Link href="/dashboard/database/material" style={subMenuItemStyle('/dashboard/database/material')}>
-                Harga Material
-              </Link>
-              <Link href="/dashboard/database/borongan" style={subMenuItemStyle('/dashboard/database/borongan')}>
-                Harga Borongan
-              </Link>
-              <Link href="/dashboard/database/sewa" style={subMenuItemStyle('/dashboard/database/sewa')}>
-                Harga Sewa
-              </Link>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: '4px' }}>
-          <Link href="/dashboard/vendors" style={menuItemStyle('/dashboard/vendors')}>
-            <UsersIcon />
-            Vendors
-          </Link>
-        </div>
-      </nav>
-
-      {/* Logout */}
-      <div style={{ padding: '16px 12px', borderTop: `1px solid ${BORDER}` }}>
-        <button
-          onClick={handleLogout}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            width: '100%',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            backgroundColor: 'transparent',
-            border: `1px solid ${BORDER}`,
-            color: CREAM,
-            opacity: 0.7,
-            fontSize: '14px',
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-          }}
-        >
-          <LogoutIcon />
-          Logout
-        </button>
-      </div>
-    </>
-  )
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
 
-      {/* Mobile overlay */}
+      {/* Dark overlay behind sidebar, in front of content */}
       {isMobile && sidebarOpen && (
         <div
-          onClick={() => setSidebarOpen(false)}
+          onClick={closeSidebar}
           style={{
             position: 'fixed',
-            inset: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.5)',
             zIndex: 40,
           }}
         />
       )}
 
-      {/* Hamburger button — mobile only */}
+      {/* Hamburger button — only rendered on mobile */}
       {isMobile && (
         <button
           onClick={() => setSidebarOpen(prev => !prev)}
           aria-label="Toggle menu"
           style={{
             position: 'fixed',
-            top: '14px',
-            left: '14px',
+            top: '12px',
+            left: '12px',
             zIndex: 60,
+            width: '40px',
+            height: '40px',
             backgroundColor: NAVY,
             border: 'none',
             borderRadius: '8px',
-            padding: '10px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: GOLD,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
           }}
         >
           <HamburgerIcon />
         </button>
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — fixed, slides in/out on mobile */}
       <aside
         style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
           width: '240px',
-          minWidth: '240px',
+          height: '100vh',
           backgroundColor: NAVY,
           display: 'flex',
           flexDirection: 'column',
           borderRight: `1px solid ${BORDER}`,
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          height: '100vh',
           overflowY: 'auto',
           zIndex: 50,
-          // Mobile: slide in/out; desktop: always visible
-          transform: isMobile ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'translateX(0)',
+          transform: isMobile
+            ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)')
+            : 'translateX(0)',
           transition: 'transform 0.25s ease',
         }}
       >
-        {sidebarContent}
+        {/* Logo */}
+        <div style={{ padding: '28px 20px 24px', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: '20px', fontWeight: '700', color: GOLD, letterSpacing: '5px' }}>
+            NASETA
+          </div>
+          <div style={{ fontSize: '11px', color: CREAM, opacity: 0.5, marginTop: '4px', letterSpacing: '0.5px' }}>
+            PT Upadana Semesta
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav style={{ flex: 1, padding: '16px 12px' }}>
+          <Link href="/dashboard/projects" onClick={closeSidebar} style={menuItemStyle('/dashboard/projects')}>
+            <FolderIcon />
+            Projects
+          </Link>
+
+          <div style={{ marginTop: '4px' }}>
+            <button
+              onClick={() => setDbOpen(prev => !prev)}
+              style={{
+                ...menuItemStyle('/dashboard/database'),
+                width: '100%',
+                border: 'none',
+                background: dbOpen ? ACTIVE_BG : 'transparent',
+                justifyContent: 'space-between',
+                color: dbOpen ? GOLD : CREAM,
+                opacity: 1,
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: dbOpen ? 1 : 0.7 }}>
+                <DatabaseIcon />
+                Database
+              </span>
+              <ChevronIcon open={dbOpen} />
+            </button>
+
+            {dbOpen && (
+              <div style={{ marginTop: '2px' }}>
+                <Link href="/dashboard/database/upah" onClick={closeSidebar} style={subMenuItemStyle('/dashboard/database/upah')}>
+                  Harga Upah
+                </Link>
+                <Link href="/dashboard/database/material" onClick={closeSidebar} style={subMenuItemStyle('/dashboard/database/material')}>
+                  Harga Material
+                </Link>
+                <Link href="/dashboard/database/borongan" onClick={closeSidebar} style={subMenuItemStyle('/dashboard/database/borongan')}>
+                  Harga Borongan
+                </Link>
+                <Link href="/dashboard/database/sewa" onClick={closeSidebar} style={subMenuItemStyle('/dashboard/database/sewa')}>
+                  Harga Sewa
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginTop: '4px' }}>
+            <Link href="/dashboard/vendors" onClick={closeSidebar} style={menuItemStyle('/dashboard/vendors')}>
+              <UsersIcon />
+              Vendors
+            </Link>
+          </div>
+        </nav>
+
+        {/* Logout */}
+        <div style={{ padding: '16px 12px', borderTop: `1px solid ${BORDER}` }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              width: '100%',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              backgroundColor: 'transparent',
+              border: `1px solid ${BORDER}`,
+              color: CREAM,
+              opacity: 0.7,
+              fontSize: '14px',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            <LogoutIcon />
+            Logout
+          </button>
+        </div>
       </aside>
 
       {/* Main content */}
       <main
         style={{
           marginLeft: isMobile ? 0 : '240px',
-          flex: 1,
+          width: isMobile ? '100%' : 'calc(100% - 240px)',
           backgroundColor: '#F5F0E8',
           minHeight: '100vh',
-          padding: isMobile ? '72px 16px 28px' : '32px',
+          padding: isMobile ? '64px 16px 28px' : '32px',
           color: '#0D2E42',
+          boxSizing: 'border-box',
         }}
       >
         {children}
