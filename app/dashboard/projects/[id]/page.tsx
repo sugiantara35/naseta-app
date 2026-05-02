@@ -206,25 +206,37 @@ export default async function ProjectDetailPage({
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: `1px solid ${BORDER}` }}>
-        {ALL_TABS.map(tab => {
-          const active = tab === activeTab
-          return (
-            <Link key={tab} href={`/dashboard/projects/${id}?tab=${tab}`} style={{
-              padding: '10px 18px',
-              fontSize: '13px',
-              fontWeight: active ? '600' : '400',
-              color: active ? GOLD : SECONDARY,
-              textDecoration: 'none',
-              borderBottom: active ? `2px solid ${GOLD}` : '2px solid transparent',
-              marginBottom: '-1px',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s',
-            }}>
-              {tabLabel(tab)}
-            </Link>
-          )
-        })}
+      <div style={{
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        msOverflowStyle: 'none',
+        scrollbarWidth: 'none',
+        marginBottom: '24px',
+        borderBottom: `1px solid ${BORDER}`,
+      }}>
+        <div style={{ display: 'flex', gap: '4px', minWidth: 'max-content' }}>
+          {ALL_TABS.map(tab => {
+            const active = tab === activeTab
+            return (
+              <Link key={tab} href={`/dashboard/projects/${id}?tab=${tab}`} style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '10px 18px',
+                fontSize: '13px',
+                fontWeight: active ? '600' : '400',
+                color: active ? GOLD : SECONDARY,
+                textDecoration: 'none',
+                borderBottom: active ? `2px solid ${GOLD}` : '2px solid transparent',
+                marginBottom: '-1px',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s',
+                flexShrink: 0,
+              }}>
+                {tabLabel(tab)}
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
       {/* ── REKAPITULASI ── */}
