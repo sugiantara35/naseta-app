@@ -93,7 +93,6 @@ export default function TambahRapItemPage() {
       satuan: form.satuan.trim() || null,
       volume: form.volume ? parseFloat(form.volume) : null,
       harga_satuan: form.harga_satuan ? parseFloat(form.harga_satuan) : null,
-      total_rap: totalRap || null,
     })
 
     if (error) { setError(error.message); setLoading(false); return }
