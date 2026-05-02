@@ -4,9 +4,10 @@ import { notFound, redirect } from 'next/navigation'
 import React from 'react'
 
 const GOLD = '#D4AF37'
-const CREAM = '#FAF5EB'
-const BORDER = 'rgba(212,175,55,0.2)'
-const CARD_BG = 'rgba(13,46,66,0.6)'
+const NAVY = '#0D2E42'
+const SECONDARY = '#1A3B52'
+const BORDER = 'rgba(13,46,66,0.15)'
+const CARD_BG = '#FFFFFF'
 
 const RAP_DIVISI = [
   { nomor: 1, nama: 'PERSIAPAN' },
@@ -38,18 +39,17 @@ const thStyle: React.CSSProperties = {
   padding: '13px 16px',
   textAlign: 'left',
   fontSize: '11px',
-  fontWeight: '600',
-  color: GOLD,
+  fontWeight: '700',
+  color: NAVY,
   letterSpacing: '1px',
   textTransform: 'uppercase',
-  opacity: 0.85,
   whiteSpace: 'nowrap',
 }
 
 const tdStyle: React.CSSProperties = {
   padding: '14px 16px',
   fontSize: '13px',
-  color: CREAM,
+  color: NAVY,
   verticalAlign: 'middle',
 }
 
@@ -87,19 +87,19 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
     <div>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <Link href={`/dashboard/projects/${id}`} style={{ fontSize: '12px', color: CREAM, opacity: 0.5, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
+        <Link href={`/dashboard/projects/${id}`} style={{ fontSize: '12px', color: SECONDARY, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
           ← Kembali ke Project
         </Link>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <h1 style={{ fontSize: '22px', fontWeight: '600', color: CREAM, margin: '0 0 6px 0' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: '600', color: NAVY, margin: '0 0 6px 0' }}>
               RAP — {project.nama}
             </h1>
-            <p style={{ fontSize: '13px', color: CREAM, opacity: 0.5, margin: 0 }}>
+            <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>
               Rencana Anggaran Pelaksanaan
             </p>
           </div>
-          <code style={{ backgroundColor: 'rgba(212,175,55,0.1)', color: GOLD, padding: '4px 12px', borderRadius: '6px', fontSize: '13px', fontFamily: 'monospace' }}>
+          <code style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: '#7a5c00', padding: '4px 12px', borderRadius: '6px', fontSize: '13px', fontFamily: 'monospace', fontWeight: '600' }}>
             {project.kode}
           </code>
         </div>
@@ -125,29 +125,29 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{
-                  backgroundColor: 'rgba(212,175,55,0.15)', color: GOLD,
-                  border: `1px solid ${BORDER}`, borderRadius: '6px',
+                  backgroundColor: 'rgba(212,175,55,0.15)', color: '#7a5c00',
+                  border: '1px solid rgba(212,175,55,0.4)', borderRadius: '6px',
                   padding: '3px 10px', fontSize: '12px', fontWeight: '700',
                 }}>
                   {nomor}
                 </span>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', color: GOLD, margin: 0, letterSpacing: '1px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', color: NAVY, margin: 0, letterSpacing: '0.5px' }}>
                   {nama}
                 </h3>
               </div>
               <Link href={`/dashboard/projects/${id}/rap/tambah?divisi=${nama}`} style={{
-                padding: '7px 14px', backgroundColor: 'rgba(212,175,55,0.12)',
-                border: `1px solid ${BORDER}`, borderRadius: '8px',
-                color: GOLD, textDecoration: 'none', fontSize: '12px', fontWeight: '600',
+                padding: '7px 14px', backgroundColor: 'rgba(212,175,55,0.15)',
+                border: '1px solid rgba(212,175,55,0.4)', borderRadius: '8px',
+                color: '#7a5c00', textDecoration: 'none', fontSize: '12px', fontWeight: '600',
               }}>
                 + Tambah Item RAP
               </Link>
             </div>
 
-            <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '10px', overflow: 'auto' }}>
+            <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '10px', overflow: 'auto', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '820px' }}>
                 <thead>
-                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: '#F5F0E8' }}>
                     {['No', 'Deskripsi', 'Satuan', 'Volume', 'Harga Satuan', 'Total RAP', 'Aksi'].map(col => (
                       <th key={col} style={col === 'Aksi' ? { ...thStyle, textAlign: 'right' as const } : thStyle}>{col}</th>
                     ))}
@@ -156,7 +156,7 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                 <tbody>
                   {divisiItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', opacity: 0.35, padding: '24px' }}>
+                      <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: SECONDARY, padding: '24px' }}>
                         Belum ada item RAP
                       </td>
                     </tr>
@@ -165,12 +165,11 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                       {subDivisiGroups.map(({ subDivisi, items: groupItems }, gIdx) => (
                         <React.Fragment key={subDivisi ?? `g${gIdx}`}>
                           {subDivisi && (
-                            <tr style={{ backgroundColor: 'rgba(250,245,235,0.03)', borderBottom: `1px solid ${BORDER}` }}>
+                            <tr style={{ backgroundColor: '#F5F0E8', borderBottom: `1px solid ${BORDER}` }}>
                               <td colSpan={7} style={{
                                 ...tdStyle,
                                 fontStyle: 'italic',
-                                color: CREAM,
-                                opacity: 0.65,
+                                color: SECONDARY,
                                 paddingTop: '10px',
                                 paddingBottom: '10px',
                                 fontSize: '12px',
@@ -185,18 +184,18 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                             const no = rowNo
                             return (
                               <tr key={item.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                                <td style={{ ...tdStyle, opacity: 0.55, width: '48px' }}>{no}</td>
+                                <td style={{ ...tdStyle, color: SECONDARY, width: '48px' }}>{no}</td>
                                 <td style={{ ...tdStyle, maxWidth: '240px' }}>{item.deskripsi}</td>
-                                <td style={{ ...tdStyle, opacity: 0.7 }}>{item.satuan ?? '—'}</td>
-                                <td style={{ ...tdStyle, opacity: 0.7 }}>{item.volume ?? '—'}</td>
-                                <td style={{ ...tdStyle, opacity: 0.8 }}>{item.harga_satuan != null ? formatRupiah(item.harga_satuan) : '—'}</td>
+                                <td style={{ ...tdStyle, color: SECONDARY }}>{item.satuan ?? '—'}</td>
+                                <td style={{ ...tdStyle, color: SECONDARY }}>{item.volume ?? '—'}</td>
+                                <td style={{ ...tdStyle, color: SECONDARY }}>{item.harga_satuan != null ? formatRupiah(item.harga_satuan) : '—'}</td>
                                 <td style={{ ...tdStyle, color: GOLD, fontWeight: '600' }}>{item.total_rap != null ? formatRupiah(item.total_rap) : '—'}</td>
                                 <td style={{ ...tdStyle, textAlign: 'right' }}>
                                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                     <Link href={`/dashboard/projects/${id}/rap/${item.id}/edit`} style={{
                                       padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
-                                      textDecoration: 'none', backgroundColor: 'rgba(212,175,55,0.1)',
-                                      border: `1px solid ${BORDER}`, color: GOLD,
+                                      textDecoration: 'none', backgroundColor: '#FFFFFF',
+                                      border: `1px solid ${BORDER}`, color: NAVY,
                                     }}>
                                       Edit
                                     </Link>
@@ -205,8 +204,8 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                                       <input type="hidden" name="project_id" value={id} />
                                       <button type="submit" style={{
                                         padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
-                                        backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-                                        color: '#f87171', cursor: 'pointer',
+                                        backgroundColor: '#fee2e2', border: '1px solid #fecaca',
+                                        color: '#991b1b', cursor: 'pointer',
                                       }}>
                                         Hapus
                                       </button>
@@ -220,8 +219,8 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
                       ))}
 
                       {/* Subtotal */}
-                      <tr style={{ backgroundColor: 'rgba(212,175,55,0.07)', borderTop: `1px solid ${BORDER}` }}>
-                        <td colSpan={5} style={{ ...tdStyle, fontWeight: '700', fontSize: '12px', color: GOLD, opacity: 0.85, letterSpacing: '0.5px' }}>
+                      <tr style={{ backgroundColor: 'rgba(212,175,55,0.08)', borderTop: `1px solid ${BORDER}` }}>
+                        <td colSpan={5} style={{ ...tdStyle, fontWeight: '700', fontSize: '12px', color: NAVY, letterSpacing: '0.5px' }}>
                           SUBTOTAL {nama}
                         </td>
                         <td style={{ ...tdStyle, fontWeight: '700', color: GOLD }}>{formatRupiah(subtotal)}</td>
@@ -247,7 +246,7 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '820px' }}>
           <tbody>
             <tr>
-              <td colSpan={5} style={{ ...tdStyle, fontWeight: '800', fontSize: '13px', color: GOLD, letterSpacing: '1.5px', padding: '16px' }}>
+              <td colSpan={5} style={{ ...tdStyle, fontWeight: '800', fontSize: '13px', color: NAVY, letterSpacing: '1px', padding: '16px' }}>
                 GRAND TOTAL RAP
               </td>
               <td style={{ ...tdStyle, fontWeight: '800', color: GOLD, fontSize: '14px', padding: '16px' }}>

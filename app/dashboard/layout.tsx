@@ -111,7 +111,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Sidebar */}
+      {/* Sidebar — stays navy */}
       <aside style={{
         width: '240px',
         minWidth: '240px',
@@ -140,13 +140,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: '16px 12px' }}>
-          {/* Projects */}
           <Link href="/dashboard/projects" style={menuItemStyle('/dashboard/projects')}>
             <FolderIcon />
             Projects
           </Link>
 
-          {/* Database (collapsible) */}
           <div style={{ marginTop: '4px' }}>
             <button
               onClick={() => setDbOpen(!dbOpen)}
@@ -185,7 +183,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
 
-          {/* Vendors */}
           <div style={{ marginTop: '4px' }}>
             <Link href="/dashboard/vendors" style={menuItemStyle('/dashboard/vendors')}>
               <UsersIcon />
@@ -220,14 +217,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main content — light cream */}
       <main style={{
         marginLeft: '240px',
         flex: 1,
-        backgroundColor: '#0F3550',
+        backgroundColor: '#F5F0E8',
         minHeight: '100vh',
         padding: '32px',
-        color: CREAM,
+        color: '#0D2E42',
       }}>
         {children}
       </main>

@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 const GOLD = '#D4AF37'
-const CREAM = '#FAF5EB'
-const BORDER = 'rgba(212,175,55,0.2)'
-const INPUT_BG = 'rgba(255,255,255,0.06)'
+const NAVY = '#0D2E42'
+const SECONDARY = '#1A3B52'
+const BORDER = 'rgba(13,46,66,0.2)'
+const INPUT_BG = '#FFFFFF'
+const CARD_BG = '#FFFFFF'
 
 const STATUS_OPTIONS = ['AKTIF', 'DITUNDA', 'SELESAI'] as const
 
@@ -17,11 +19,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <label style={{
         display: 'block',
         fontSize: '11px',
-        color: CREAM,
-        opacity: 0.6,
+        color: SECONDARY,
         marginBottom: '8px',
         letterSpacing: '1px',
         textTransform: 'uppercase',
+        fontWeight: '600',
       }}>
         {label}
       </label>
@@ -36,7 +38,7 @@ const inputStyle: React.CSSProperties = {
   backgroundColor: INPUT_BG,
   border: `1px solid ${BORDER}`,
   borderRadius: '8px',
-  color: CREAM,
+  color: NAVY,
   fontSize: '14px',
   outline: 'none',
   boxSizing: 'border-box',
@@ -93,15 +95,20 @@ export default function TambahProjectPage() {
   return (
     <div style={{ maxWidth: '640px' }}>
       <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '600', color: CREAM, margin: '0 0 6px 0' }}>Tambah Project</h1>
-        <p style={{ fontSize: '13px', color: CREAM, opacity: 0.5, margin: 0 }}>Isi detail project baru</p>
+        <button onClick={() => router.push('/dashboard/projects')}
+          style={{ background: 'none', border: 'none', color: SECONDARY, fontSize: '12px', cursor: 'pointer', padding: 0, marginBottom: '12px' }}>
+          ← Kembali
+        </button>
+        <h1 style={{ fontSize: '22px', fontWeight: '600', color: NAVY, margin: '0 0 6px 0' }}>Tambah Project</h1>
+        <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>Isi detail project baru</p>
       </div>
 
       <div style={{
-        backgroundColor: 'rgba(13,46,66,0.6)',
-        border: `1px solid ${BORDER}`,
+        backgroundColor: CARD_BG,
+        border: `1px solid rgba(13,46,66,0.15)`,
         borderRadius: '12px',
         padding: '32px',
+        boxShadow: '0 1px 3px rgba(13,46,66,0.06)',
       }}>
         <form onSubmit={handleSubmit}>
           <Field label="Nama Project *">
@@ -142,7 +149,7 @@ export default function TambahProjectPage() {
                 name="durasi_mulai"
                 value={form.durasi_mulai}
                 onChange={handleChange}
-                style={{ ...inputStyle, colorScheme: 'dark' }}
+                style={{ ...inputStyle, colorScheme: 'light' }}
               />
             </Field>
             <Field label="Durasi Selesai">
@@ -151,7 +158,7 @@ export default function TambahProjectPage() {
                 name="durasi_selesai"
                 value={form.durasi_selesai}
                 onChange={handleChange}
-                style={{ ...inputStyle, colorScheme: 'dark' }}
+                style={{ ...inputStyle, colorScheme: 'light' }}
               />
             </Field>
           </div>
@@ -164,13 +171,13 @@ export default function TambahProjectPage() {
               style={{ ...inputStyle, cursor: 'pointer' }}
             >
               {STATUS_OPTIONS.map(s => (
-                <option key={s} value={s} style={{ backgroundColor: '#0D2E42' }}>{s}</option>
+                <option key={s} value={s} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{s}</option>
               ))}
             </select>
           </Field>
 
           {error && (
-            <p style={{ color: '#f87171', fontSize: '13px', marginBottom: '16px' }}>{error}</p>
+            <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>{error}</p>
           )}
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
@@ -179,8 +186,8 @@ export default function TambahProjectPage() {
               disabled={loading}
               style={{
                 padding: '12px 28px',
-                backgroundColor: loading ? 'rgba(212,175,55,0.5)' : GOLD,
-                color: '#0D2E42',
+                backgroundColor: loading ? 'rgba(13,46,66,0.4)' : NAVY,
+                color: '#FAF5EB',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '13px',
@@ -196,13 +203,12 @@ export default function TambahProjectPage() {
               onClick={() => router.push('/dashboard/projects')}
               style={{
                 padding: '12px 24px',
-                backgroundColor: 'transparent',
-                color: CREAM,
+                backgroundColor: '#FFFFFF',
+                color: NAVY,
                 border: `1px solid ${BORDER}`,
                 borderRadius: '8px',
                 fontSize: '13px',
                 cursor: 'pointer',
-                opacity: 0.7,
               }}
             >
               Batal

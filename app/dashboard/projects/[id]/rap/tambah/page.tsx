@@ -5,9 +5,11 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
 const GOLD = '#D4AF37'
-const CREAM = '#FAF5EB'
-const BORDER = 'rgba(212,175,55,0.2)'
-const INPUT_BG = 'rgba(255,255,255,0.06)'
+const NAVY = '#0D2E42'
+const SECONDARY = '#1A3B52'
+const BORDER = 'rgba(13,46,66,0.2)'
+const INPUT_BG = '#FFFFFF'
+const CARD_BG = '#FFFFFF'
 
 const RAP_DIVISI = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP', 'LAINNYA', 'MATERIAL', 'SEWA', 'MANAJEMEN'] as const
 type RapDivisi = typeof RAP_DIVISI[number]
@@ -20,8 +22,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return (
     <div style={{ marginBottom: '20px' }}>
       <label style={{
-        display: 'block', fontSize: '11px', color: CREAM, opacity: 0.6,
-        marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase',
+        display: 'block', fontSize: '11px', color: SECONDARY,
+        marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600',
       }}>
         {label}
       </label>
@@ -32,7 +34,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '11px 14px', backgroundColor: INPUT_BG,
-  border: `1px solid ${BORDER}`, borderRadius: '8px', color: CREAM,
+  border: `1px solid ${BORDER}`, borderRadius: '8px', color: NAVY,
   fontSize: '14px', outline: 'none', boxSizing: 'border-box',
 }
 
@@ -93,23 +95,23 @@ export default function TambahRapItemPage() {
     <div style={{ maxWidth: '640px' }}>
       <div style={{ marginBottom: '28px' }}>
         <button onClick={() => router.push(`/dashboard/projects/${projectId}/rap`)}
-          style={{ background: 'none', border: 'none', color: CREAM, opacity: 0.5, fontSize: '12px', cursor: 'pointer', padding: 0, marginBottom: '12px' }}>
+          style={{ background: 'none', border: 'none', color: SECONDARY, fontSize: '12px', cursor: 'pointer', padding: 0, marginBottom: '12px' }}>
           ← Kembali
         </button>
-        <h1 style={{ fontSize: '22px', fontWeight: '600', color: CREAM, margin: '0 0 6px 0' }}>Tambah Item RAP</h1>
-        <p style={{ fontSize: '13px', color: CREAM, opacity: 0.5, margin: 0 }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '600', color: NAVY, margin: '0 0 6px 0' }}>Tambah Item RAP</h1>
+        <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>
           Rencana Anggaran Pelaksanaan
         </p>
       </div>
 
-      <div style={{ backgroundColor: 'rgba(13,46,66,0.6)', border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '32px' }}>
+      <div style={{ backgroundColor: CARD_BG, border: `1px solid rgba(13,46,66,0.15)`, borderRadius: '12px', padding: '32px', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Divisi *">
               <select name="divisi" value={form.divisi} onChange={handleChange}
                 style={{ ...inputStyle, cursor: 'pointer' }}>
                 {RAP_DIVISI.map(d => (
-                  <option key={d} value={d} style={{ backgroundColor: '#0D2E42' }}>{d}</option>
+                  <option key={d} value={d} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{d}</option>
                 ))}
               </select>
             </Field>
@@ -143,8 +145,8 @@ export default function TambahRapItemPage() {
 
           {/* Total RAP computed */}
           <div style={{
-            backgroundColor: 'rgba(212,175,55,0.08)',
-            border: `1px solid ${BORDER}`,
+            backgroundColor: 'rgba(212,175,55,0.1)',
+            border: '1px solid rgba(212,175,55,0.4)',
             borderRadius: '10px',
             padding: '16px 20px',
             marginBottom: '24px',
@@ -152,7 +154,7 @@ export default function TambahRapItemPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>
-            <span style={{ fontSize: '12px', color: CREAM, opacity: 0.6, letterSpacing: '1px', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '12px', color: SECONDARY, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>
               Total RAP
             </span>
             <span style={{ fontSize: '18px', fontWeight: '700', color: GOLD }}>
@@ -160,21 +162,21 @@ export default function TambahRapItemPage() {
             </span>
           </div>
 
-          {error && <p style={{ color: '#f87171', fontSize: '13px', marginBottom: '16px' }}>{error}</p>}
+          {error && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: '12px' }}>
             <button type="submit" disabled={loading} style={{
-              padding: '12px 28px', backgroundColor: loading ? 'rgba(212,175,55,0.5)' : GOLD,
-              color: '#0D2E42', border: 'none', borderRadius: '8px', fontSize: '13px',
+              padding: '12px 28px', backgroundColor: loading ? 'rgba(13,46,66,0.4)' : NAVY,
+              color: '#FAF5EB', border: 'none', borderRadius: '8px', fontSize: '13px',
               fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer', letterSpacing: '0.5px',
             }}>
               {loading ? 'Menyimpan...' : 'Simpan Item RAP'}
             </button>
             <button type="button" onClick={() => router.push(`/dashboard/projects/${projectId}/rap`)}
               style={{
-                padding: '12px 24px', backgroundColor: 'transparent', color: CREAM,
+                padding: '12px 24px', backgroundColor: '#FFFFFF', color: NAVY,
                 border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '13px',
-                cursor: 'pointer', opacity: 0.7,
+                cursor: 'pointer',
               }}>
               Batal
             </button>
