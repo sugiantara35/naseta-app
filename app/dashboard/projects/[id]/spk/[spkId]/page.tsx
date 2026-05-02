@@ -41,7 +41,7 @@ type PengajuanItem = {
   jumlah_diajukan: number
   jumlah_disetujui: number | null
   status: string
-  catatan_pengaju: string | null
+  catatan_qs: string | null
   created_at: string
 }
 
@@ -174,7 +174,7 @@ export default function SpkDetailPage() {
     const { error } = await supabase.from('pengajuan_pembayaran').insert({
       spk_id: spkId,
       jumlah_diajukan: parseFloat(pengajuanForm.jumlah),
-      catatan_pengaju: pengajuanForm.catatan.trim() || null,
+      catatan_qs: pengajuanForm.catatan.trim() || null,
       status: 'MENUNGGU_SM',
     })
     if (error) {

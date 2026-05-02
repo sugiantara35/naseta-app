@@ -53,7 +53,7 @@ type PengajuanDetail = {
   jumlah_diajukan: number
   jumlah_disetujui: number | null
   status: string
-  catatan_pengaju: string | null
+  catatan_qs: string | null
   catatan_sm: string | null
   catatan_finance: string | null
   catatan_direktur: string | null
@@ -312,10 +312,10 @@ export default function PengajuanDetailPage() {
           </div>
         </div>
 
-        {pengajuan.catatan_pengaju && (
+        {pengajuan.catatan_qs && (
           <div style={{ marginTop: '16px', padding: '12px 16px', backgroundColor: '#F5F0E8', borderRadius: '8px', border: `1px solid ${BORDER}` }}>
             <p style={{ fontSize: '11px', color: SECONDARY, margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>Catatan Pengaju</p>
-            <p style={{ fontSize: '13px', color: NAVY, margin: 0 }}>{pengajuan.catatan_pengaju}</p>
+            <p style={{ fontSize: '13px', color: NAVY, margin: 0 }}>{pengajuan.catatan_qs}</p>
           </div>
         )}
       </div>
