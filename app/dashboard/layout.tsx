@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -10,6 +10,16 @@ const NAVY = '#0D2E42'
 const CREAM = '#FAF5EB'
 const BORDER = 'rgba(212,175,55,0.2)'
 const ACTIVE_BG = 'rgba(212,175,55,0.15)'
+
+function HamburgerIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  )
+}
 
 function FolderIcon() {
   return (
@@ -63,6 +73,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const [dbOpen, setDbOpen] = useState(pathname.startsWith('/dashboard/database'))
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    function checkMobile() {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
 
   async function handleLogout() {
     const supabase = createClient()
@@ -109,123 +135,174 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Sidebar — stays navy */}
-      <aside style={{
-        width: '240px',
-        minWidth: '240px',
-        backgroundColor: NAVY,
-        display: 'flex',
-        flexDirection: 'column',
-        borderRight: `1px solid ${BORDER}`,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        height: '100vh',
-        overflowY: 'auto',
-      }}>
-        {/* Logo */}
-        <div style={{
-          padding: '28px 20px 24px',
-          borderBottom: `1px solid ${BORDER}`,
-        }}>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: GOLD, letterSpacing: '5px' }}>
-            NASETA
-          </div>
-          <div style={{ fontSize: '11px', color: CREAM, opacity: 0.5, marginTop: '4px', letterSpacing: '0.5px' }}>
-            PT Upadana Semesta
-          </div>
+  const sidebarContent = (
+    <>
+      {/* Logo */}
+      <div style={{ padding: '28px 20px 24px', borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ fontSize: '20px', fontWeight: '700', color: GOLD, letterSpacing: '5px' }}>
+          NASETA
         </div>
+        <div style={{ fontSize: '11px', color: CREAM, opacity: 0.5, marginTop: '4px', letterSpacing: '0.5px' }}>
+          PT Upadana Semesta
+        </div>
+      </div>
 
-        {/* Navigation */}
-        <nav style={{ flex: 1, padding: '16px 12px' }}>
-          <Link href="/dashboard/projects" style={menuItemStyle('/dashboard/projects')}>
-            <FolderIcon />
-            Projects
-          </Link>
+      {/* Navigation */}
+      <nav style={{ flex: 1, padding: '16px 12px' }}>
+        <Link href="/dashboard/projects" style={menuItemStyle('/dashboard/projects')}>
+          <FolderIcon />
+          Projects
+        </Link>
 
-          <div style={{ marginTop: '4px' }}>
-            <button
-              onClick={() => setDbOpen(!dbOpen)}
-              style={{
-                ...menuItemStyle('/dashboard/database'),
-                width: '100%',
-                border: 'none',
-                background: dbOpen ? ACTIVE_BG : 'transparent',
-                justifyContent: 'space-between',
-                color: dbOpen ? GOLD : CREAM,
-                opacity: 1,
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: dbOpen ? 1 : 0.7 }}>
-                <DatabaseIcon />
-                Database
-              </span>
-              <ChevronIcon open={dbOpen} />
-            </button>
-
-            {dbOpen && (
-              <div style={{ marginTop: '2px' }}>
-                <Link href="/dashboard/database/upah" style={subMenuItemStyle('/dashboard/database/upah')}>
-                  Harga Upah
-                </Link>
-                <Link href="/dashboard/database/material" style={subMenuItemStyle('/dashboard/database/material')}>
-                  Harga Material
-                </Link>
-                <Link href="/dashboard/database/borongan" style={subMenuItemStyle('/dashboard/database/borongan')}>
-                  Harga Borongan
-                </Link>
-                <Link href="/dashboard/database/sewa" style={subMenuItemStyle('/dashboard/database/sewa')}>
-                  Harga Sewa
-                </Link>
-              </div>
-            )}
-          </div>
-
-          <div style={{ marginTop: '4px' }}>
-            <Link href="/dashboard/vendors" style={menuItemStyle('/dashboard/vendors')}>
-              <UsersIcon />
-              Vendors
-            </Link>
-          </div>
-        </nav>
-
-        {/* Logout */}
-        <div style={{ padding: '16px 12px', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ marginTop: '4px' }}>
           <button
-            onClick={handleLogout}
+            onClick={() => setDbOpen(!dbOpen)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
+              ...menuItemStyle('/dashboard/database'),
               width: '100%',
-              padding: '10px 16px',
-              borderRadius: '8px',
-              backgroundColor: 'transparent',
-              border: `1px solid ${BORDER}`,
-              color: CREAM,
-              opacity: 0.7,
-              fontSize: '14px',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
+              border: 'none',
+              background: dbOpen ? ACTIVE_BG : 'transparent',
+              justifyContent: 'space-between',
+              color: dbOpen ? GOLD : CREAM,
+              opacity: 1,
             }}
           >
-            <LogoutIcon />
-            Logout
+            <span style={{ display: 'flex', alignItems: 'center', gap: '10px', opacity: dbOpen ? 1 : 0.7 }}>
+              <DatabaseIcon />
+              Database
+            </span>
+            <ChevronIcon open={dbOpen} />
           </button>
+
+          {dbOpen && (
+            <div style={{ marginTop: '2px' }}>
+              <Link href="/dashboard/database/upah" style={subMenuItemStyle('/dashboard/database/upah')}>
+                Harga Upah
+              </Link>
+              <Link href="/dashboard/database/material" style={subMenuItemStyle('/dashboard/database/material')}>
+                Harga Material
+              </Link>
+              <Link href="/dashboard/database/borongan" style={subMenuItemStyle('/dashboard/database/borongan')}>
+                Harga Borongan
+              </Link>
+              <Link href="/dashboard/database/sewa" style={subMenuItemStyle('/dashboard/database/sewa')}>
+                Harga Sewa
+              </Link>
+            </div>
+          )}
         </div>
+
+        <div style={{ marginTop: '4px' }}>
+          <Link href="/dashboard/vendors" style={menuItemStyle('/dashboard/vendors')}>
+            <UsersIcon />
+            Vendors
+          </Link>
+        </div>
+      </nav>
+
+      {/* Logout */}
+      <div style={{ padding: '16px 12px', borderTop: `1px solid ${BORDER}` }}>
+        <button
+          onClick={handleLogout}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            width: '100%',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            backgroundColor: 'transparent',
+            border: `1px solid ${BORDER}`,
+            color: CREAM,
+            opacity: 0.7,
+            fontSize: '14px',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          <LogoutIcon />
+          Logout
+        </button>
+      </div>
+    </>
+  )
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+
+      {/* Mobile overlay */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: 40,
+          }}
+        />
+      )}
+
+      {/* Hamburger button — mobile only */}
+      {isMobile && (
+        <button
+          onClick={() => setSidebarOpen(prev => !prev)}
+          aria-label="Toggle menu"
+          style={{
+            position: 'fixed',
+            top: '14px',
+            left: '14px',
+            zIndex: 60,
+            backgroundColor: NAVY,
+            border: 'none',
+            borderRadius: '8px',
+            padding: '10px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: GOLD,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          }}
+        >
+          <HamburgerIcon />
+        </button>
+      )}
+
+      {/* Sidebar */}
+      <aside
+        style={{
+          width: '240px',
+          minWidth: '240px',
+          backgroundColor: NAVY,
+          display: 'flex',
+          flexDirection: 'column',
+          borderRight: `1px solid ${BORDER}`,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          height: '100vh',
+          overflowY: 'auto',
+          zIndex: 50,
+          // Mobile: slide in/out; desktop: always visible
+          transform: isMobile ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'translateX(0)',
+          transition: 'transform 0.25s ease',
+        }}
+      >
+        {sidebarContent}
       </aside>
 
-      {/* Main content — light cream */}
-      <main style={{
-        marginLeft: '240px',
-        flex: 1,
-        backgroundColor: '#F5F0E8',
-        minHeight: '100vh',
-        padding: '32px',
-        color: '#0D2E42',
-      }}>
+      {/* Main content */}
+      <main
+        style={{
+          marginLeft: isMobile ? 0 : '240px',
+          flex: 1,
+          backgroundColor: '#F5F0E8',
+          minHeight: '100vh',
+          padding: isMobile ? '72px 16px 28px' : '32px',
+          color: '#0D2E42',
+        }}
+      >
         {children}
       </main>
     </div>

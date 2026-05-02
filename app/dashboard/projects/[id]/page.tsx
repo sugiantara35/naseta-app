@@ -403,8 +403,8 @@ export default async function ProjectDetailPage({
               + Tambah Material
             </Link>
           </div>
-          <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', overflowX: 'auto', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: '#F5F0E8' }}>
                   {['Deskripsi', 'Vendor', 'Qty', 'Satuan', 'Harga Satuan', 'Total'].map(col => (
