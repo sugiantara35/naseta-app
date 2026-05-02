@@ -71,6 +71,14 @@ function ChevronIcon({ open }: { open: boolean }) {
   )
 }
 
+function ShieldIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  )
+}
+
 function LogoutIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -81,12 +89,28 @@ function LogoutIcon() {
   )
 }
 
+const ROLE_BADGE: Record<string, React.CSSProperties> = {
+  ADMIN:        { backgroundColor: 'rgba(212,175,55,0.25)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)' },
+  DIREKTUR:     { backgroundColor: 'rgba(167,139,250,0.2)', color: '#c4b5fd', border: '1px solid rgba(167,139,250,0.35)' },
+  SITE_MANAGER: { backgroundColor: 'rgba(147,197,253,0.2)', color: '#93c5fd', border: '1px solid rgba(147,197,253,0.35)' },
+  QS:           { backgroundColor: 'rgba(134,239,172,0.2)', color: '#86efac', border: '1px solid rgba(134,239,172,0.35)' },
+  ESTIMATOR:    { backgroundColor: 'rgba(253,186,116,0.2)', color: '#fdba74', border: '1px solid rgba(253,186,116,0.35)' },
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  ADMIN: 'Admin', DIREKTUR: 'Direktur', SITE_MANAGER: 'Site Manager',
+  QS: 'QS', ESTIMATOR: 'Estimator',
+}
+
+type SidebarProfile = { nama: string; role: string }
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [dbOpen, setDbOpen] = useState(pathname.startsWith('/dashboard/database'))
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [profile, setProfile] = useState<SidebarProfile | null>(null)
 
   useEffect(() => {
     function checkMobile() {
@@ -95,6 +119,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  useEffect(() => {
+    async function fetchProfile() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('profiles')
+        .select('nama, role')
+        .eq('id', user.id)
+        .single()
+      if (data) setProfile(data as SidebarProfile)
+    }
+    fetchProfile()
   }, [])
 
   // Close sidebar whenever route changes
@@ -285,10 +324,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Vendors
             </Link>
           </div>
+
+          {profile?.role === 'ADMIN' && (
+            <div style={{ marginTop: '4px' }}>
+              <Link href="/dashboard/users" onClick={closeSidebar} style={menuItemStyle('/dashboard/users')}>
+                <ShieldIcon />
+                Users
+              </Link>
+            </div>
+          )}
         </nav>
 
-        {/* Logout */}
+        {/* Profile + Logout */}
         <div style={{ padding: '16px 12px', borderTop: `1px solid ${BORDER}` }}>
+          {profile && (
+            <div style={{ marginBottom: '10px', padding: '10px 12px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '8px', border: `1px solid ${BORDER}` }}>
+              <p style={{ fontSize: '13px', color: CREAM, margin: '0 0 6px 0', fontWeight: '600', lineHeight: '1.3' }}>
+                {profile.nama}
+              </p>
+              <span style={{
+                ...(ROLE_BADGE[profile.role] ?? {}),
+                padding: '2px 8px', borderRadius: '4px',
+                fontSize: '10px', fontWeight: '700', letterSpacing: '0.5px',
+              }}>
+                {ROLE_LABEL[profile.role] ?? profile.role}
+              </span>
+            </div>
+          )}
           <button
             onClick={handleLogout}
             style={{

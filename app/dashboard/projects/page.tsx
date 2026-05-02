@@ -39,10 +39,17 @@ function StatusBadge({ status }: { status: Project['status'] }) {
 
 export default async function ProjectsPage() {
   const supabase = await createServerSupabaseClient()
-  const { data: projects, error } = await supabase
-    .from('projects')
-    .select('id, nama, kode, lokasi, durasi_mulai, durasi_selesai, status')
-    .order('created_at', { ascending: false })
+
+  const [{ data: projects }, { data: { user } }] = await Promise.all([
+    supabase.from('projects').select('id, nama, kode, lokasi, durasi_mulai, durasi_selesai, status').order('created_at', { ascending: false }),
+    supabase.auth.getUser(),
+  ])
+
+  let canCreateProject = false
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    canCreateProject = ['ADMIN', 'ESTIMATOR', 'DIREKTUR'].includes(profile?.role ?? '')
+  }
 
   return (
     <div>
@@ -54,29 +61,24 @@ export default async function ProjectsPage() {
             {projects?.length ?? 0} project terdaftar
           </p>
         </div>
-        <Link href="/dashboard/projects/tambah" style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '10px 20px',
-          backgroundColor: NAVY,
-          color: '#FAF5EB',
-          borderRadius: '8px',
-          fontSize: '13px',
-          fontWeight: '700',
-          textDecoration: 'none',
-          letterSpacing: '0.5px',
-        }}>
-          + Tambah Project
-        </Link>
+        {canCreateProject && (
+          <Link href="/dashboard/projects/tambah" style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            backgroundColor: NAVY,
+            color: '#FAF5EB',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: '700',
+            textDecoration: 'none',
+            letterSpacing: '0.5px',
+          }}>
+            + Tambah Project
+          </Link>
+        )}
       </div>
-
-      {/* Error */}
-      {error && (
-        <div style={{ padding: '16px', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', marginBottom: '20px', fontSize: '13px' }}>
-          Gagal memuat data: {error.message}
-        </div>
-      )}
 
       {/* Table */}
       <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', overflowX: 'auto', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>

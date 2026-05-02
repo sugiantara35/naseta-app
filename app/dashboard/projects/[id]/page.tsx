@@ -114,13 +114,18 @@ export default async function ProjectDetailPage({
 
   const supabase = await createServerSupabaseClient()
 
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [{ data: project, error: projectError }, { data: { user } }] = await Promise.all([
+    supabase.from('projects').select('*').eq('id', id).single(),
+    supabase.auth.getUser(),
+  ])
 
   if (projectError || !project) notFound()
+
+  let canCreateSpk = false
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    canCreateSpk = ['ADMIN', 'QS', 'DIREKTUR'].includes(profile?.role ?? '')
+  }
 
   let spkList: SpkRow[] = []
   let allSpk: SpkRow[] = []
@@ -446,14 +451,16 @@ export default async function ProjectDetailPage({
       {/* ── DIVISI TABS ── */}
       {DIVISI_TABS.includes(activeTab as typeof DIVISI_TABS[number]) && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-            <Link href={`/dashboard/projects/${id}/spk/tambah?divisi=${activeTab}`} style={{
-              padding: '9px 18px', backgroundColor: NAVY, color: '#FAF5EB',
-              borderRadius: '8px', fontSize: '13px', fontWeight: '700', textDecoration: 'none',
-            }}>
-              + Tambah SPK
-            </Link>
-          </div>
+          {canCreateSpk && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+              <Link href={`/dashboard/projects/${id}/spk/tambah?divisi=${activeTab}`} style={{
+                padding: '9px 18px', backgroundColor: NAVY, color: '#FAF5EB',
+                borderRadius: '8px', fontSize: '13px', fontWeight: '700', textDecoration: 'none',
+              }}>
+                + Tambah SPK
+              </Link>
+            </div>
+          )}
           <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', overflow: 'auto', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
               <thead>

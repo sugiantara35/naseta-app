@@ -124,6 +124,7 @@ export default function PengajuanDetailPage() {
   const [fetchError, setFetchError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   const [smAction, setSmAction] = useState<'none' | 'setujui' | 'renumerasi' | 'tolak'>('none')
   const [renumerasiAmount, setRenumerasiAmount] = useState('')
@@ -152,6 +153,21 @@ export default function PengajuanDetailPage() {
   }, [id])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  useEffect(() => {
+    async function fetchRole() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      if (data) setUserRole(data.role)
+    }
+    fetchRole()
+  }, [])
 
   async function updateStatus(updates: Record<string, unknown>) {
     setSaving(true)
@@ -229,6 +245,8 @@ export default function PengajuanDetailPage() {
   if (fetchError || !pengajuan) return <div style={{ color: '#dc2626', fontSize: '14px', paddingTop: '40px' }}>{fetchError}</div>
 
   const status = pengajuan.status
+  const canApproveSM = ['ADMIN', 'SITE_MANAGER', 'DIREKTUR'].includes(userRole ?? '')
+  const canApproveDir = ['ADMIN', 'DIREKTUR'].includes(userRole ?? '')
   const smDone = status !== 'MENUNGGU_SM'
   const smRejected = status === 'DITOLAK_SM'
   const financeVisible = !['MENUNGGU_SM', 'DITOLAK_SM'].includes(status)
@@ -329,11 +347,17 @@ export default function PengajuanDetailPage() {
       {/* TAHAP 1 — SM */}
       <StageCard title="Tahap 1 — Site Manager" stepNum="1" done={smDone} active={!smDone} rejected={smRejected}>
         {!smDone && smAction === 'none' && (
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <button onClick={() => setSmAction('setujui')} style={btnSuccess}>✓ Setujui</button>
-            <button onClick={() => setSmAction('renumerasi')} style={btnInfo}>↔ Renumerasi</button>
-            <button onClick={() => setSmAction('tolak')} style={btnWarn}>✕ Tolak</button>
-          </div>
+          canApproveSM ? (
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button onClick={() => setSmAction('setujui')} style={btnSuccess}>✓ Setujui</button>
+              <button onClick={() => setSmAction('renumerasi')} style={btnInfo}>↔ Renumerasi</button>
+              <button onClick={() => setSmAction('tolak')} style={btnWarn}>✕ Tolak</button>
+            </div>
+          ) : (
+            <p style={{ fontSize: '12px', color: SECONDARY, margin: 0, fontStyle: 'italic' }}>
+              Menunggu persetujuan Site Manager
+            </p>
+          )
         )}
 
         {!smDone && smAction === 'setujui' && (
@@ -455,12 +479,18 @@ export default function PengajuanDetailPage() {
       {dirVisible && (
         <StageCard title="Tahap 3 — Direktur" stepNum="3" done={dirComplete} active={dirActive} rejected={dirRejected}>
           {dirActive && dirAction === 'none' && (
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button onClick={handleDirApprove} disabled={saving} style={saving ? btnPrimary(true) : btnSuccess}>
-                {saving ? 'Menyimpan...' : '✓ Approve Final'}
-              </button>
-              <button onClick={() => setDirAction('tolak')} style={btnWarn}>✕ Tolak</button>
-            </div>
+            canApproveDir ? (
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button onClick={handleDirApprove} disabled={saving} style={saving ? btnPrimary(true) : btnSuccess}>
+                  {saving ? 'Menyimpan...' : '✓ Approve Final'}
+                </button>
+                <button onClick={() => setDirAction('tolak')} style={btnWarn}>✕ Tolak</button>
+              </div>
+            ) : (
+              <p style={{ fontSize: '12px', color: SECONDARY, margin: 0, fontStyle: 'italic' }}>
+                Menunggu persetujuan Direktur
+              </p>
+            )
           )}
 
           {dirActive && dirAction === 'tolak' && (

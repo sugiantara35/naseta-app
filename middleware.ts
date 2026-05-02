@@ -35,6 +35,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
+  // Protect /dashboard/users — ADMIN only
+  if (user && pathname.startsWith('/dashboard/users')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    if (!profile || profile.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+  }
+
   return supabaseResponse
 }
 
