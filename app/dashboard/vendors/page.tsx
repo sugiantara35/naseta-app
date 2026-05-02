@@ -13,7 +13,7 @@ type Vendor = {
   kontak: string | null
   kategori: string | null
   status: 'AKTIF' | 'BLACKLIST'
-  spk: { projects: { id: string; status: string }[] }[]
+  spk: { projects: { id: string; status: string } | null }[]
 }
 
 function StatusBadge({ status }: { status: Vendor['status'] }) {
@@ -100,10 +100,10 @@ export default async function VendorsPage() {
                 </td>
               </tr>
             ) : (
-              vendors.map((v: Vendor, i: number) => {
+              (vendors as unknown as Vendor[]).map((v: Vendor, i: number) => {
                 const activeProjectIds = new Set(
                   v.spk.flatMap(s =>
-                    s.projects.filter(p => p.status === 'AKTIF').map(p => p.id)
+                    s.projects && s.projects.status === 'AKTIF' ? [s.projects.id] : []
                   )
                 )
                 const isOverwork = activeProjectIds.size > 3
