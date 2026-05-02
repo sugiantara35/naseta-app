@@ -116,17 +116,25 @@ export default function SpkDetailPage() {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('spk')
-      .select('*, vendors(nama), spk_payments(*), pengajuan(*)')
+      .select('*, vendors(nama), spk_payments(*)')
       .eq('id', spkId)
       .order('created_at', { ascending: false, referencedTable: 'spk_payments' })
-      .order('created_at', { ascending: false, referencedTable: 'pengajuan' })
       .single()
 
     if (error || !data) {
       setError('SPK tidak ditemukan.')
-    } else {
-      setSpk(data as SpkDetail)
+      setLoading(false)
+      return
     }
+
+    // Fetch pengajuan separately so missing table doesn't break SPK page
+    const { data: pengajuanData } = await supabase
+      .from('pengajuan')
+      .select('*')
+      .eq('spk_id', spkId)
+      .order('created_at', { ascending: false })
+
+    setSpk({ ...data, pengajuan: pengajuanData ?? [] } as SpkDetail)
     setLoading(false)
   }, [spkId])
 
