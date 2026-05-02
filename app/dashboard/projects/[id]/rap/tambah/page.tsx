@@ -14,6 +14,13 @@ const CARD_BG = '#FFFFFF'
 const RAP_DIVISI = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP', 'LAINNYA', 'MATERIAL', 'SEWA', 'MANAJEMEN'] as const
 type RapDivisi = typeof RAP_DIVISI[number]
 
+const SUB_KATEGORI_MAP: Partial<Record<RapDivisi, string[]>> = {
+  PERSIAPAN:  ['Pek Site Clearing', 'Pek Pembuatan Bedeng', 'Pek Sumur Bor', 'Tenaga Harian'],
+  STRUKTUR:   ['Struktur Utama', 'Struktur Baja', 'Struktur Kayu', 'Struktur Baja Ringan', 'Waterproofing'],
+  ARSITEKTUR: ['Pasangan Dinding', 'Plester Aci', 'Pek Pasang Ceiling', 'Pasang Keramik / Granite Tile / Batu Alam', 'Finishing Cat dan Politur', 'Pek Daun Pintu Jendela', 'Aluminium'],
+  MEP:        ['Pek Mekanikal', 'Pek Elektrikal', 'Pek Plumbing'],
+}
+
 function formatRupiah(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
 }
@@ -57,24 +64,31 @@ export default function TambahRapItemPage() {
   const [loading, setLoading] = useState(false)
 
   const totalRap = (parseFloat(form.volume) || 0) * (parseFloat(form.harga_satuan) || 0)
+  const subOptions = SUB_KATEGORI_MAP[form.divisi as RapDivisi] ?? null
+  const isManualMode = form.sub_divisi === '__manual__'
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    if (name === 'divisi') {
+      setForm(prev => ({ ...prev, divisi: value as RapDivisi, sub_divisi: '' }))
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }))
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-
     if (!form.deskripsi.trim()) return setError('Deskripsi wajib diisi.')
+
+    const subVal = isManualMode ? '' : form.sub_divisi
 
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.from('rap_items').insert({
       project_id: projectId,
       divisi: form.divisi,
-      sub_divisi: form.sub_divisi.trim() || null,
+      sub_divisi: subVal.trim() || null,
       deskripsi: form.deskripsi.trim(),
       satuan: form.satuan.trim() || null,
       volume: form.volume ? parseFloat(form.volume) : null,
@@ -82,12 +96,7 @@ export default function TambahRapItemPage() {
       total_rap: totalRap || null,
     })
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
+    if (error) { setError(error.message); setLoading(false); return }
     router.push(`/dashboard/projects/${projectId}/rap`)
   }
 
@@ -99,15 +108,13 @@ export default function TambahRapItemPage() {
           ← Kembali
         </button>
         <h1 style={{ fontSize: '22px', fontWeight: '600', color: NAVY, margin: '0 0 6px 0' }}>Tambah Item RAP</h1>
-        <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>
-          Rencana Anggaran Pelaksanaan
-        </p>
+        <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>Rencana Anggaran Pelaksanaan</p>
       </div>
 
       <div style={{ backgroundColor: CARD_BG, border: `1px solid rgba(13,46,66,0.15)`, borderRadius: '12px', padding: '32px', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Divisi *">
+            <Field label="Kategori *">
               <select name="divisi" value={form.divisi} onChange={handleChange}
                 style={{ ...inputStyle, cursor: 'pointer' }}>
                 {RAP_DIVISI.map(d => (
@@ -115,9 +122,47 @@ export default function TambahRapItemPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Sub Divisi">
-              <input name="sub_divisi" value={form.sub_divisi} onChange={handleChange}
-                placeholder="Opsional, contoh: Pondasi" style={inputStyle} />
+
+            <Field label="Sub Kategori">
+              {subOptions ? (
+                <>
+                  <select
+                    name="sub_divisi"
+                    value={isManualMode ? '__manual__' : form.sub_divisi}
+                    onChange={e => {
+                      if (e.target.value === '__manual__') {
+                        setForm(prev => ({ ...prev, sub_divisi: '__manual__' }))
+                      } else {
+                        setForm(prev => ({ ...prev, sub_divisi: e.target.value }))
+                      }
+                    }}
+                    style={{ ...inputStyle, cursor: 'pointer', marginBottom: isManualMode ? '8px' : '0' }}
+                  >
+                    <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Sub Kategori —</option>
+                    {subOptions.map(s => (
+                      <option key={s} value={s} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{s}</option>
+                    ))}
+                    <option value="__manual__" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Isi Manual —</option>
+                  </select>
+                  {isManualMode && (
+                    <input
+                      value=""
+                      onChange={e => setForm(prev => ({ ...prev, sub_divisi: e.target.value }))}
+                      placeholder="Ketik sub kategori..."
+                      style={inputStyle}
+                      autoFocus
+                    />
+                  )}
+                </>
+              ) : (
+                <input
+                  name="sub_divisi"
+                  value={form.sub_divisi}
+                  onChange={handleChange}
+                  placeholder="Opsional, contoh: Pondasi"
+                  style={inputStyle}
+                />
+              )}
             </Field>
           </div>
 
@@ -143,16 +188,10 @@ export default function TambahRapItemPage() {
               placeholder="0" min="0" step="1000" style={inputStyle} />
           </Field>
 
-          {/* Total RAP computed */}
           <div style={{
-            backgroundColor: 'rgba(212,175,55,0.1)',
-            border: '1px solid rgba(212,175,55,0.4)',
-            borderRadius: '10px',
-            padding: '16px 20px',
-            marginBottom: '24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            backgroundColor: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.4)',
+            borderRadius: '10px', padding: '16px 20px', marginBottom: '24px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
             <span style={{ fontSize: '12px', color: SECONDARY, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>
               Total RAP
@@ -173,11 +212,8 @@ export default function TambahRapItemPage() {
               {loading ? 'Menyimpan...' : 'Simpan Item RAP'}
             </button>
             <button type="button" onClick={() => router.push(`/dashboard/projects/${projectId}/rap`)}
-              style={{
-                padding: '12px 24px', backgroundColor: '#FFFFFF', color: NAVY,
-                border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '13px',
-                cursor: 'pointer',
-              }}>
+              style={{ padding: '12px 24px', backgroundColor: '#FFFFFF', color: NAVY,
+                border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
               Batal
             </button>
           </div>
