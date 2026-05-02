@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { SpkApprovalActions } from './SpkApprovalActions'
 
 const GOLD = '#D4AF37'
 const NAVY = '#0D2E42'
@@ -9,7 +10,7 @@ const BORDER = 'rgba(13,46,66,0.15)'
 const CARD_BG = '#FFFFFF'
 
 const DIVISI_TABS = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP', 'LAINNYA'] as const
-const ALL_TABS = ['REKAPITULASI', ...DIVISI_TABS, 'MATERIAL'] as const
+const ALL_TABS = ['APPROVAL', 'REKAPITULASI', ...DIVISI_TABS, 'MATERIAL'] as const
 type Tab = typeof ALL_TABS[number]
 
 function formatRupiah(n: number) {
@@ -18,6 +19,7 @@ function formatRupiah(n: number) {
 
 function tabLabel(tab: string) {
   if (tab === 'REKAPITULASI') return 'Rekapitulasi'
+  if (tab === 'APPROVAL') return 'Menunggu Approval'
   return tab.charAt(0) + tab.slice(1).toLowerCase()
 }
 
@@ -39,6 +41,7 @@ function SpkStatusBadge({ status }: { status: string }) {
     DRAFT:   { backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' },
     AKTIF:   { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
     SELESAI: { backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' },
+    BATAL:   { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' },
   }
   return (
     <span style={{ ...(map[status] ?? map.DRAFT), padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }}>
@@ -77,6 +80,17 @@ type RapItemRow = {
   divisi: string
   deskripsi: string
   total_rap: number | null
+}
+
+type DraftSpkRow = {
+  id: string
+  nomor_spk: string
+  deskripsi: string
+  divisi: string
+  sub_kategori: string | null
+  deal_spk: number | null
+  tanggal_spk: string | null
+  vendors: { nama: string } | null
 }
 
 const thStyle: React.CSSProperties = {
@@ -122,17 +136,28 @@ export default async function ProjectDetailPage({
   if (projectError || !project) notFound()
 
   let canCreateSpk = false
+  let canApprove = false
   if (user) {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     canCreateSpk = ['ADMIN', 'QS', 'DIREKTUR'].includes(profile?.role ?? '')
+    canApprove = ['ADMIN', 'SITE_MANAGER', 'DIREKTUR'].includes(profile?.role ?? '')
   }
 
   let spkList: SpkRow[] = []
   let allSpk: SpkRow[] = []
   let materialList: MaterialRow[] = []
   let rapItemsList: RapItemRow[] = []
+  let draftSpkList: DraftSpkRow[] = []
 
-  if (activeTab === 'REKAPITULASI') {
+  if (activeTab === 'APPROVAL') {
+    const { data } = await supabase
+      .from('spk')
+      .select('id, nomor_spk, deskripsi, divisi, sub_kategori, deal_spk, tanggal_spk, vendors(nama)')
+      .eq('project_id', id)
+      .eq('status', 'DRAFT')
+      .order('created_at', { ascending: true })
+    draftSpkList = (data as unknown as DraftSpkRow[]) ?? []
+  } else if (activeTab === 'REKAPITULASI') {
     const { data } = await supabase
       .from('spk')
       .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap)')
@@ -252,6 +277,68 @@ export default async function ProjectDetailPage({
           })}
         </div>
       </div>
+
+      {/* ── MENUNGGU APPROVAL ── */}
+      {activeTab === 'APPROVAL' && (
+        <div>
+          <div style={{ marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: NAVY, margin: '0 0 4px 0' }}>
+              SPK Menunggu Approval
+            </h2>
+            <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>
+              {draftSpkList.length === 0
+                ? 'Tidak ada SPK yang menunggu persetujuan.'
+                : `${draftSpkList.length} SPK menunggu persetujuan.`}
+            </p>
+          </div>
+
+          {draftSpkList.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {draftSpkList.map(spk => (
+                <div key={spk.id} style={{
+                  backgroundColor: CARD_BG, border: `1px solid ${BORDER}`,
+                  borderRadius: '12px', padding: '20px 24px',
+                  boxShadow: '0 1px 3px rgba(13,46,66,0.06)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                        <code style={{
+                          backgroundColor: 'rgba(212,175,55,0.15)', color: '#7a5c00',
+                          padding: '2px 8px', borderRadius: '4px', fontSize: '12px',
+                          fontFamily: 'monospace', fontWeight: '600',
+                        }}>
+                          {spk.nomor_spk}
+                        </code>
+                        <span style={{
+                          fontSize: '11px', backgroundColor: 'rgba(13,46,66,0.08)',
+                          color: SECONDARY, padding: '2px 8px', borderRadius: '4px', fontWeight: '600',
+                        }}>
+                          {spk.divisi}
+                        </span>
+                        {spk.sub_kategori && (
+                          <span style={{ fontSize: '11px', color: SECONDARY }}>· {spk.sub_kategori}</span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: '14px', color: NAVY, margin: '0 0 6px 0', fontWeight: '500' }}>
+                        {spk.deskripsi}
+                      </p>
+                      <div style={{ fontSize: '12px', color: SECONDARY, display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        {spk.vendors?.nama && <span>Vendor: {spk.vendors.nama}</span>}
+                        {spk.deal_spk != null && <span>Deal: {formatRupiah(spk.deal_spk)}</span>}
+                        {spk.tanggal_spk && <span>{spk.tanggal_spk}</span>}
+                      </div>
+                    </div>
+                    <div style={{ minWidth: '220px' }}>
+                      <SpkApprovalActions spkId={spk.id} canApprove={canApprove} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── REKAPITULASI ── */}
       {activeTab === 'REKAPITULASI' && (() => {
