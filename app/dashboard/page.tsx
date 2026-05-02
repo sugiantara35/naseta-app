@@ -10,9 +10,9 @@ async function getPengajuanCounts() {
   try {
     const supabase = await createServerSupabaseClient()
     const [sm, finance, direktur] = await Promise.all([
-      supabase.from('pengajuan').select('id', { count: 'exact', head: true }).eq('status', 'MENUNGGU_SM'),
-      supabase.from('pengajuan').select('id', { count: 'exact', head: true }).in('status', ['DISETUJUI_SM', 'RENUMERASI_SM']),
-      supabase.from('pengajuan').select('id', { count: 'exact', head: true }).eq('status', 'DISETUJUI_FINANCE'),
+      supabase.from('pengajuan_pembayaran').select('id', { count: 'exact', head: true }).eq('status', 'MENUNGGU_SM'),
+      supabase.from('pengajuan_pembayaran').select('id', { count: 'exact', head: true }).in('status', ['DISETUJUI_SM', 'RENUMERASI_SM']),
+      supabase.from('pengajuan_pembayaran').select('id', { count: 'exact', head: true }).eq('status', 'DISETUJUI_FINANCE'),
     ])
     return {
       menungguSM: sm.count ?? 0,

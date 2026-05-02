@@ -1,7 +1,7 @@
--- Sprint 4: Tabel pengajuan pembayaran
+-- Sprint 4: Tabel pengajuan_pembayaran pembayaran
 -- Jalankan di Supabase SQL Editor
 
-CREATE TABLE IF NOT EXISTS pengajuan (
+CREATE TABLE IF NOT EXISTS pengajuan_pembayaran (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   spk_id UUID REFERENCES spk(id) ON DELETE CASCADE NOT NULL,
   jumlah_diajukan NUMERIC NOT NULL,
@@ -14,5 +14,5 @@ CREATE TABLE IF NOT EXISTS pengajuan (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS pengajuan_spk_id_idx ON pengajuan(spk_id);
-CREATE INDEX IF NOT EXISTS pengajuan_status_idx ON pengajuan(status);
+CREATE INDEX IF NOT EXISTS pengajuan_pembayaran_spk_id_idx ON pengajuan_pembayaran(spk_id);
+CREATE INDEX IF NOT EXISTS pengajuan_pembayaran_status_idx ON pengajuan_pembayaran(status);

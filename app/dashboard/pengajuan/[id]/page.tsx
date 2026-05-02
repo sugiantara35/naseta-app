@@ -138,7 +138,7 @@ export default function PengajuanDetailPage() {
   const fetchData = useCallback(async () => {
     const supabase = createClient()
     const { data, error } = await supabase
-      .from('pengajuan')
+      .from('pengajuan_pembayaran')
       .select('*, spk:spk_id(nomor_spk, divisi, project_id, vendors(nama), projects(nama))')
       .eq('id', id)
       .single()
@@ -157,7 +157,7 @@ export default function PengajuanDetailPage() {
     setSaving(true)
     setSaveError('')
     const supabase = createClient()
-    const { error } = await supabase.from('pengajuan').update(updates).eq('id', id)
+    const { error } = await supabase.from('pengajuan_pembayaran').update(updates).eq('id', id)
     if (error) {
       setSaveError(error.message)
       setSaving(false)

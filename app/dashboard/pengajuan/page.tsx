@@ -80,7 +80,7 @@ export default function PengajuanPage() {
     async function fetchAll() {
       const supabase = createClient()
       const { data: rows } = await supabase
-        .from('pengajuan')
+        .from('pengajuan_pembayaran')
         .select('*, spk:spk_id(nomor_spk, divisi, vendors(nama), projects(nama))')
         .order('created_at', { ascending: false })
       if (rows) setData(rows as PengajuanRow[])

@@ -129,7 +129,7 @@ export default function SpkDetailPage() {
 
     // Fetch pengajuan separately so missing table doesn't break SPK page
     const { data: pengajuanData } = await supabase
-      .from('pengajuan')
+      .from('pengajuan_pembayaran')
       .select('*')
       .eq('spk_id', spkId)
       .order('created_at', { ascending: false })
@@ -171,7 +171,7 @@ export default function SpkDetailPage() {
     if (!pengajuanForm.jumlah) return setPengajuanError('Jumlah diajukan wajib diisi.')
     setCreatingPengajuan(true)
     const supabase = createClient()
-    const { error } = await supabase.from('pengajuan').insert({
+    const { error } = await supabase.from('pengajuan_pembayaran').insert({
       spk_id: spkId,
       jumlah_diajukan: parseFloat(pengajuanForm.jumlah),
       catatan_pengaju: pengajuanForm.catatan.trim() || null,
