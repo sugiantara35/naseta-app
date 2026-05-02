@@ -50,38 +50,40 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', marginBottom: '16px' }}>
         {topStats.map(({ label, value }) => (
           <div key={label} style={{
             backgroundColor: CARD_BG,
             border: `1px solid ${BORDER}`,
             borderRadius: '12px',
-            padding: '24px 28px',
+            padding: '20px 20px',
             boxShadow: '0 1px 3px rgba(13,46,66,0.06)',
+            minWidth: 0,
           }}>
-            <p style={{ fontSize: '12px', color: SECONDARY, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <p style={{ fontSize: '11px', color: SECONDARY, margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '1px', lineHeight: '1.4', wordBreak: 'break-word' }}>
               {label}
             </p>
-            <p style={{ fontSize: '32px', fontWeight: '700', color: GOLD, margin: 0 }}>
+            <p style={{ fontSize: '28px', fontWeight: '700', color: GOLD, margin: 0 }}>
               {value}
             </p>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px' }}>
         {pengajuanStats.map(({ label, value, accent, bg, borderColor }) => (
           <div key={label} style={{
             backgroundColor: bg,
             border: `1px solid ${borderColor}`,
             borderRadius: '12px',
-            padding: '24px 28px',
+            padding: '20px 20px',
             boxShadow: '0 1px 3px rgba(13,46,66,0.06)',
+            minWidth: 0,
           }}>
-            <p style={{ fontSize: '12px', color: accent, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>
+            <p style={{ fontSize: '11px', color: accent, margin: '0 0 10px 0', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600', lineHeight: '1.4', wordBreak: 'break-word' }}>
               {label}
             </p>
-            <p style={{ fontSize: '32px', fontWeight: '700', color: accent, margin: 0 }}>
+            <p style={{ fontSize: '28px', fontWeight: '700', color: accent, margin: 0 }}>
               {value}
             </p>
           </div>
