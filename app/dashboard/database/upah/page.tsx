@@ -50,12 +50,22 @@ const thStyle = {
 }
 const tdStyle = { padding: '14px 20px', fontSize: '13px', color: NAVY, verticalAlign: 'middle' as const }
 
+const KATEGORI_ORDER = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP']
+
 export default async function HargaUpahPage() {
   const supabase = await createServerSupabaseClient()
-  const { data: items, error } = await supabase
+  const { data: rawItems, error } = await supabase
     .from('harga_upah')
     .select('id, nama_pekerjaan, kategori, satuan, harga, berlaku_mulai, catatan')
-    .order('nama_pekerjaan', { ascending: true })
+
+  const items = (rawItems ?? []).slice().sort((a, b) => {
+    const ai = KATEGORI_ORDER.indexOf(a.kategori ?? '')
+    const bi = KATEGORI_ORDER.indexOf(b.kategori ?? '')
+    const ka = ai === -1 ? KATEGORI_ORDER.length : ai
+    const kb = bi === -1 ? KATEGORI_ORDER.length : bi
+    if (ka !== kb) return ka - kb
+    return (a.nama_pekerjaan ?? '').localeCompare(b.nama_pekerjaan ?? '', 'id')
+  })
 
   return (
     <div>
