@@ -11,19 +11,30 @@ const INPUT_BG = '#FFFFFF'
 const CARD_BG = '#FFFFFF'
 
 const STATUS_OPTIONS = ['AKTIF', 'BLACKLIST'] as const
-const KATEGORI_OPTIONS = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP', 'LAINNYA', 'MATERIAL', 'SEWA'] as const
+
+const KATEGORI_OPTIONS = [
+  { value: 'PERSIAPAN',  label: 'Persiapan' },
+  { value: 'STRUKTUR',   label: 'Struktur' },
+  { value: 'ARSITEKTUR', label: 'Arsitektur' },
+  { value: 'MEP',        label: 'MEP' },
+  { value: 'SEWA',       label: 'Sewa' },
+  { value: 'LAINNYA',    label: 'Lainnya' },
+]
+
+const SUB_KATEGORI_MAP: Record<string, string[]> = {
+  PERSIAPAN:  ['Sumur Bor', 'Site Clearing', 'Bongkaran', 'Antitermite', 'Setting Out'],
+  STRUKTUR:   ['Beton Bertulang', 'Struktur Baja', 'Struktur Kayu', 'Struktur Baja Ringan', 'Waterproofing'],
+  ARSITEKTUR: ['Pasangan Dinding', 'Plester Aci', 'Pek Pasang Ceiling', 'Pasang Keramik / Granite Tile / Batu Alam', 'Finishing Cat dan Politur', 'Pek Daun Pintu Jendela', 'Aluminium'],
+  MEP:        ['MEP'],
+  SEWA:       ['Alat Berat'],
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '20px' }}>
       <label style={{
-        display: 'block',
-        fontSize: '11px',
-        color: SECONDARY,
-        marginBottom: '8px',
-        letterSpacing: '1px',
-        textTransform: 'uppercase',
-        fontWeight: '600',
+        display: 'block', fontSize: '11px', color: SECONDARY, marginBottom: '8px',
+        letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600',
       }}>
         {label}
       </label>
@@ -33,50 +44,44 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '11px 14px',
-  backgroundColor: INPUT_BG,
-  border: `1px solid ${BORDER}`,
-  borderRadius: '8px',
-  color: NAVY,
-  fontSize: '14px',
-  outline: 'none',
-  boxSizing: 'border-box',
+  width: '100%', padding: '11px 14px', backgroundColor: INPUT_BG,
+  border: `1px solid ${BORDER}`, borderRadius: '8px', color: NAVY,
+  fontSize: '14px', outline: 'none', boxSizing: 'border-box',
 }
 
 export default function TambahVendorPage() {
   const router = useRouter()
   const [form, setForm] = useState({
-    nama: '',
-    kode: '',
-    nama_ktp: '',
-    alias: '',
-    no_hp: '',
-    alamat: '',
-    kategori: '',
-    catatan: '',
+    nama: '', kode: '', nama_ktp: '', alias: '', no_hp: '',
+    alamat: '', kategori: '', sub_kategori: '', catatan: '',
     status: 'AKTIF' as typeof STATUS_OPTIONS[number],
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const subKategoriOptions = form.kategori ? (SUB_KATEGORI_MAP[form.kategori] ?? []) : []
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target
-    setForm(prev => ({
-      ...prev,
-      [name]: name === 'kode' ? value.toUpperCase().slice(0, 10) : value,
-    }))
+    if (name === 'kategori') {
+      setForm(prev => ({ ...prev, kategori: value, sub_kategori: '' }))
+    } else {
+      setForm(prev => ({
+        ...prev,
+        [name]: name === 'kode' ? value.toUpperCase().slice(0, 10) : value,
+      }))
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-
     if (!form.nama.trim()) return setError('Nama vendor wajib diisi.')
     if (!form.kode.trim()) return setError('Kode vendor wajib diisi.')
 
     setLoading(true)
     const supabase = createClient()
+    const subVal = form.sub_kategori === '__manual__' ? '' : form.sub_kategori
     const { error } = await supabase.from('vendors').insert({
       nama: form.nama.trim(),
       kode: form.kode.trim(),
@@ -85,16 +90,12 @@ export default function TambahVendorPage() {
       kontak: form.no_hp.trim() || null,
       alamat: form.alamat.trim() || null,
       kategori: form.kategori || null,
+      sub_kategori: subVal.trim() || null,
       catatan: form.catatan.trim() || null,
       status: form.status,
     })
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
+    if (error) { setError(error.message); setLoading(false); return }
     router.push('/dashboard/vendors')
   }
 
@@ -109,13 +110,7 @@ export default function TambahVendorPage() {
         <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>Isi detail vendor baru</p>
       </div>
 
-      <div style={{
-        backgroundColor: CARD_BG,
-        border: `1px solid rgba(13,46,66,0.15)`,
-        borderRadius: '12px',
-        padding: '32px',
-        boxShadow: '0 1px 3px rgba(13,46,66,0.06)',
-      }}>
+      <div style={{ backgroundColor: CARD_BG, border: `1px solid rgba(13,46,66,0.15)`, borderRadius: '12px', padding: '32px', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Nama Vendor *">
@@ -150,11 +145,43 @@ export default function TambahVendorPage() {
                 style={{ ...inputStyle, cursor: 'pointer' }}>
                 <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Kategori —</option>
                 {KATEGORI_OPTIONS.map(k => (
-                  <option key={k} value={k} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{k}</option>
+                  <option key={k.value} value={k.value} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{k.label}</option>
                 ))}
               </select>
             </Field>
           </div>
+
+          <Field label="Sub Kategori">
+            {subKategoriOptions.length > 0 ? (
+              <>
+                <select name="sub_kategori" value={form.sub_kategori} onChange={handleChange}
+                  style={{ ...inputStyle, cursor: 'pointer', marginBottom: form.sub_kategori === '__manual__' ? '8px' : '0' }}>
+                  <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Sub Kategori —</option>
+                  {subKategoriOptions.map(s => (
+                    <option key={s} value={s} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{s}</option>
+                  ))}
+                  <option value="__manual__" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Isi Manual —</option>
+                </select>
+                {form.sub_kategori === '__manual__' && (
+                  <input
+                    name="sub_kategori"
+                    value=""
+                    onChange={e => setForm(prev => ({ ...prev, sub_kategori: e.target.value }))}
+                    placeholder="Ketik sub kategori..."
+                    style={inputStyle}
+                    autoFocus
+                  />
+                )}
+              </>
+            ) : (
+              <input name="sub_kategori" value={form.sub_kategori} onChange={handleChange}
+                placeholder={form.kategori ? 'Ketik sub kategori...' : 'Pilih kategori terlebih dahulu'}
+                style={{ ...inputStyle, opacity: form.kategori ? 1 : 0.5 }} />
+            )}
+            <p style={{ fontSize: '11px', color: SECONDARY, margin: '6px 0 0', opacity: 0.7 }}>
+              Bisa diisi bebas untuk item baru di luar daftar.
+            </p>
+          </Field>
 
           <Field label="Alamat">
             <textarea name="alamat" value={form.alamat} onChange={handleChange}
