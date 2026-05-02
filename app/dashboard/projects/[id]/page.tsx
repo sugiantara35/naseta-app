@@ -57,6 +57,15 @@ type SpkRow = {
   tanggal_spk: string | null
   vendors: { nama: string } | null
   spk_payments: { jumlah: number }[]
+  rap_item_id: string | null
+  rap_items: { id: string; deskripsi: string; total_rap: number | null } | null
+}
+
+type RapItemRow = {
+  id: string
+  divisi: string
+  deskripsi: string
+  total_rap: number | null
 }
 
 type MaterialRow = {
@@ -116,14 +125,22 @@ export default async function ProjectDetailPage({
   let spkList: SpkRow[] = []
   let allSpk: SpkRow[] = []
   let materialList: MaterialRow[] = []
+  let rapItemsList: RapItemRow[] = []
 
   if (activeTab === 'REKAPITULASI') {
     const { data } = await supabase
       .from('spk')
-      .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah)')
+      .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap)')
       .eq('project_id', id)
       .order('created_at', { ascending: true })
     allSpk = (data as unknown as SpkRow[]) ?? []
+
+    const { data: rapData } = await supabase
+      .from('rap_items')
+      .select('id, divisi, deskripsi, total_rap')
+      .eq('project_id', id)
+      .order('created_at', { ascending: true })
+    rapItemsList = (rapData as RapItemRow[]) ?? []
   } else if (activeTab === 'MATERIAL') {
     const { data } = await supabase
       .from('material_purchases')
@@ -171,12 +188,21 @@ export default async function ProjectDetailPage({
               <ProjectStatusBadge status={project.status} />
             </div>
           </div>
-          <Link href={`/dashboard/projects/${id}/edit`} style={{
-            padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: '8px',
-            color: CREAM, textDecoration: 'none', fontSize: '13px', opacity: 0.7,
-          }}>
-            Edit Project
-          </Link>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Link href={`/dashboard/projects/${id}/rap`} style={{
+              padding: '8px 16px', backgroundColor: 'rgba(212,175,55,0.12)',
+              border: `1px solid ${BORDER}`, borderRadius: '8px',
+              color: GOLD, textDecoration: 'none', fontSize: '13px', fontWeight: '600',
+            }}>
+              RAP
+            </Link>
+            <Link href={`/dashboard/projects/${id}/edit`} style={{
+              padding: '8px 16px', border: `1px solid ${BORDER}`, borderRadius: '8px',
+              color: CREAM, textDecoration: 'none', fontSize: '13px', opacity: 0.7,
+            }}>
+              Edit Project
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -235,10 +261,10 @@ export default async function ProjectDetailPage({
                   </div>
 
                   <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '10px', overflow: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
                       <thead>
                         <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                          {['No. SPK', 'Deskripsi', 'Vendor', 'PP/RAP', 'Deal SPK', 'Terbayar', 'Saldo'].map(col => (
+                          {['No. SPK', 'Deskripsi', 'RAP Rujukan', 'Vendor', 'PP/RAP', 'Deal SPK', 'Terbayar', 'Saldo'].map(col => (
                             <th key={col} style={thStyle}>{col}</th>
                           ))}
                         </tr>
@@ -246,7 +272,7 @@ export default async function ProjectDetailPage({
                       <tbody>
                         {rows.length === 0 ? (
                           <tr>
-                            <td colSpan={7} style={{ ...tdStyle, textAlign: 'center', opacity: 0.35, padding: '24px' }}>
+                            <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', opacity: 0.35, padding: '24px' }}>
                               Belum ada SPK
                             </td>
                           </tr>
@@ -256,7 +282,10 @@ export default async function ProjectDetailPage({
                           return (
                             <tr key={spk.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
                               <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '12px', color: GOLD }}>{spk.nomor_spk}</td>
-                              <td style={{ ...tdStyle, maxWidth: '220px' }}>{spk.deskripsi}</td>
+                              <td style={{ ...tdStyle, maxWidth: '200px' }}>{spk.deskripsi}</td>
+                              <td style={{ ...tdStyle, maxWidth: '180px', opacity: 0.7, fontSize: '12px', fontStyle: 'italic' }}>
+                                {spk.rap_items?.deskripsi ?? '—'}
+                              </td>
                               <td style={{ ...tdStyle, opacity: 0.7 }}>{spk.vendors?.nama ?? '—'}</td>
                               <td style={{ ...tdStyle, opacity: 0.7 }}>{spk.pp_rap != null ? formatRupiah(spk.pp_rap) : '—'}</td>
                               <td style={tdStyle}>{spk.deal_spk != null ? formatRupiah(spk.deal_spk) : '—'}</td>
@@ -268,7 +297,7 @@ export default async function ProjectDetailPage({
 
                         {/* Subtotal row */}
                         <tr style={{ backgroundColor: 'rgba(212,175,55,0.07)', borderTop: `1px solid ${BORDER}` }}>
-                          <td colSpan={3} style={{ ...tdStyle, fontWeight: '700', fontSize: '12px', color: GOLD, opacity: 0.85, letterSpacing: '0.5px' }}>
+                          <td colSpan={4} style={{ ...tdStyle, fontWeight: '700', fontSize: '12px', color: GOLD, opacity: 0.85, letterSpacing: '0.5px' }}>
                             SUBTOTAL {divisi}
                           </td>
                           <td style={{ ...tdStyle, fontWeight: '700', opacity: 0.8 }}>{formatRupiah(subPpRap)}</td>
@@ -283,7 +312,7 @@ export default async function ProjectDetailPage({
               )
             })}
 
-            {/* Grand Total */}
+            {/* Grand Total SPK */}
             <div style={{
               backgroundColor: 'rgba(212,175,55,0.12)',
               border: `1px solid rgba(212,175,55,0.4)`,
@@ -291,10 +320,10 @@ export default async function ProjectDetailPage({
               overflow: 'auto',
               marginTop: '8px',
             }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
                 <tbody>
                   <tr>
-                    <td colSpan={3} style={{ ...tdStyle, fontWeight: '800', fontSize: '13px', color: GOLD, letterSpacing: '1.5px', padding: '16px 16px' }}>
+                    <td colSpan={4} style={{ ...tdStyle, fontWeight: '800', fontSize: '13px', color: GOLD, letterSpacing: '1.5px', padding: '16px 16px' }}>
                       GRAND TOTAL
                     </td>
                     <td style={{ ...tdStyle, fontWeight: '800', color: GOLD, fontSize: '14px', padding: '16px 16px' }}>{formatRupiah(grandPpRap)}</td>
@@ -305,6 +334,62 @@ export default async function ProjectDetailPage({
                 </tbody>
               </table>
             </div>
+
+            {/* Saldo RAP per item */}
+            {rapItemsList.length > 0 && (() => {
+              const grandRapTotal = rapItemsList.reduce((s, r) => s + (r.total_rap ?? 0), 0)
+              const grandRapTerpakai = rapItemsList.reduce((s, r) => {
+                const terpakai = allSpk.filter(spk => spk.rap_item_id === r.id).reduce((a, spk) => a + (spk.deal_spk ?? 0), 0)
+                return s + terpakai
+              }, 0)
+              const grandRapSaldo = grandRapTotal - grandRapTerpakai
+
+              return (
+                <div style={{ marginTop: '32px' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: '700', color: GOLD, margin: '0 0 12px 0', letterSpacing: '1px' }}>
+                    SALDO RAP PER ITEM
+                  </h3>
+                  <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '10px', overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+                      <thead>
+                        <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                          {['Divisi', 'Deskripsi RAP', 'Total RAP', 'Terpakai (Deal SPK)', 'Saldo RAP'].map(col => (
+                            <th key={col} style={thStyle}>{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rapItemsList.map((rap, i) => {
+                          const terpakai = allSpk
+                            .filter(spk => spk.rap_item_id === rap.id)
+                            .reduce((a, spk) => a + (spk.deal_spk ?? 0), 0)
+                          const saldoRap = (rap.total_rap ?? 0) - terpakai
+                          return (
+                            <tr key={rap.id} style={{ borderBottom: i < rapItemsList.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                              <td style={{ ...tdStyle, fontSize: '11px', opacity: 0.7, whiteSpace: 'nowrap' }}>{rap.divisi}</td>
+                              <td style={{ ...tdStyle, maxWidth: '260px' }}>{rap.deskripsi}</td>
+                              <td style={{ ...tdStyle, color: GOLD, opacity: 0.85 }}>{rap.total_rap != null ? formatRupiah(rap.total_rap) : '—'}</td>
+                              <td style={{ ...tdStyle, color: '#f87171' }}>{formatRupiah(terpakai)}</td>
+                              <td style={{ ...tdStyle, fontWeight: '700', color: saldoRap < 0 ? '#f87171' : '#4ade80' }}>{formatRupiah(saldoRap)}</td>
+                            </tr>
+                          )
+                        })}
+
+                        {/* RAP Grand total row */}
+                        <tr style={{ backgroundColor: 'rgba(212,175,55,0.07)', borderTop: `1px solid ${BORDER}` }}>
+                          <td colSpan={2} style={{ ...tdStyle, fontWeight: '700', fontSize: '12px', color: GOLD, opacity: 0.85, letterSpacing: '0.5px' }}>
+                            TOTAL RAP
+                          </td>
+                          <td style={{ ...tdStyle, fontWeight: '700', color: GOLD }}>{formatRupiah(grandRapTotal)}</td>
+                          <td style={{ ...tdStyle, fontWeight: '700', color: '#f87171' }}>{formatRupiah(grandRapTerpakai)}</td>
+                          <td style={{ ...tdStyle, fontWeight: '700', color: grandRapSaldo < 0 ? '#f87171' : '#4ade80' }}>{formatRupiah(grandRapSaldo)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         )
       })()}
