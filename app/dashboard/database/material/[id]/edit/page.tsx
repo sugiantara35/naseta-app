@@ -10,13 +10,26 @@ const BORDER = 'rgba(13,46,66,0.2)'
 const CARD_BG = '#FFFFFF'
 
 const KATEGORI_OPTIONS = [
-  { value: 'GALIAN_C',       label: 'Galian C' },
-  { value: 'BESI',           label: 'Besi' },
-  { value: 'KAYU',           label: 'Kayu' },
-  { value: 'MATERIAL_UMUM',  label: 'Material Umum' },
-  { value: 'MEP',            label: 'MEP' },
-  { value: 'LAINNYA',        label: 'Lainnya' },
+  { value: 'GALIAN_C',          label: 'Galian C' },
+  { value: 'BESI',              label: 'Besi' },
+  { value: 'KAYU',              label: 'Kayu' },
+  { value: 'MATERIAL_UMUM',     label: 'Material Umum' },
+  { value: 'KERAMIK_BATU_ALAM', label: 'Keramik & Batu Alam' },
+  { value: 'MATERIAL_PEMIPAAN', label: 'Material Pemipaan' },
+  { value: 'MATERIAL_LISTRIK',  label: 'Material Listrik' },
+  { value: 'MEP',               label: 'MEP' },
+  { value: 'LAINNYA',           label: 'Lainnya' },
 ]
+
+const SUB_KATEGORI_MAP: Record<string, string[]> = {
+  GALIAN_C:          ['Pasir', 'Batu', 'Koral'],
+  BESI:              ['Besi Ulir TS 420', 'Besi Ulir TS 280', 'Besi Polos TP 280'],
+  KAYU:              ['Kayu Lepasan'],
+  MATERIAL_UMUM:     ['Semen', 'Bata Ringan'],
+  KERAMIK_BATU_ALAM: ['Batu Alam', 'Batu Andesit', 'Koral Hias'],
+  MATERIAL_PEMIPAAN: ['Pipa AW', 'Pipa D', 'Aksesori Pipa'],
+  MATERIAL_LISTRIK:  ['Kabel'],
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -40,7 +53,10 @@ export default function EditHargaMaterialPage() {
   const params = useParams()
   const id = params.id as string
 
-  const [form, setForm] = useState({ nama_material: '', kategori: '', satuan: '', harga: '', berlaku_mulai: '', catatan: '' })
+  const [form, setForm] = useState({
+    nama_material: '', kategori: '', sub_kategori: '',
+    satuan: '', harga: '', berlaku_mulai: '', catatan: '',
+  })
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -53,6 +69,7 @@ export default function EditHargaMaterialPage() {
       setForm({
         nama_material: data.nama_material ?? '',
         kategori: data.kategori ?? '',
+        sub_kategori: data.sub_kategori ?? '',
         satuan: data.satuan ?? '',
         harga: data.harga != null ? String(data.harga) : '',
         berlaku_mulai: data.berlaku_mulai ?? '',
@@ -63,9 +80,16 @@ export default function EditHargaMaterialPage() {
     fetch()
   }, [id])
 
+  const subKategoriOptions = form.kategori ? (SUB_KATEGORI_MAP[form.kategori] ?? []) : []
+  const isManual = form.sub_kategori !== '' && !subKategoriOptions.includes(form.sub_kategori)
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    if (name === 'kategori') {
+      setForm(prev => ({ ...prev, kategori: value, sub_kategori: '' }))
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }))
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -75,9 +99,11 @@ export default function EditHargaMaterialPage() {
 
     setSaving(true)
     const supabase = createClient()
+    const subVal = form.sub_kategori === '__manual__' ? '' : form.sub_kategori
     const { error } = await supabase.from('harga_material').update({
       nama_material: form.nama_material.trim(),
       kategori: form.kategori || null,
+      sub_kategori: subVal.trim() || null,
       satuan: form.satuan.trim() || null,
       harga: form.harga ? parseFloat(form.harga) : null,
       berlaku_mulai: form.berlaku_mulai || null,
@@ -116,6 +142,47 @@ export default function EditHargaMaterialPage() {
                 <option key={k.value} value={k.value} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{k.label}</option>
               ))}
             </select>
+          </Field>
+
+          <Field label="Sub Kategori">
+            {subKategoriOptions.length > 0 ? (
+              <>
+                <select
+                  name="sub_kategori"
+                  value={isManual ? '__manual__' : form.sub_kategori}
+                  onChange={e => {
+                    if (e.target.value === '__manual__') {
+                      setForm(prev => ({ ...prev, sub_kategori: '__manual__' }))
+                    } else {
+                      setForm(prev => ({ ...prev, sub_kategori: e.target.value }))
+                    }
+                  }}
+                  style={{ ...inputStyle, cursor: 'pointer', marginBottom: isManual ? '8px' : '0' }}
+                >
+                  <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Sub Kategori —</option>
+                  {subKategoriOptions.map(s => (
+                    <option key={s} value={s} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>{s}</option>
+                  ))}
+                  <option value="__manual__" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Isi Manual —</option>
+                </select>
+                {isManual && (
+                  <input
+                    value={form.sub_kategori === '__manual__' ? '' : form.sub_kategori}
+                    onChange={e => setForm(prev => ({ ...prev, sub_kategori: e.target.value }))}
+                    placeholder="Ketik sub kategori..."
+                    style={inputStyle}
+                    autoFocus
+                  />
+                )}
+              </>
+            ) : (
+              <input name="sub_kategori" value={form.sub_kategori} onChange={handleChange}
+                placeholder={form.kategori ? 'Ketik sub kategori...' : 'Pilih kategori terlebih dahulu'}
+                style={{ ...inputStyle, opacity: form.kategori ? 1 : 0.5 }} />
+            )}
+            <p style={{ fontSize: '11px', color: SECONDARY, margin: '6px 0 0', opacity: 0.7 }}>
+              Bisa diisi bebas untuk item baru di luar daftar.
+            </p>
           </Field>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
