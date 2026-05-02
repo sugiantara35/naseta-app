@@ -6,6 +6,8 @@ const NAVY = '#0D2E42'
 const SECONDARY = '#1A3B52'
 const BORDER = 'rgba(13,46,66,0.15)'
 const CARD_BG = '#FFFFFF'
+const GOLD = '#D4AF37'
+const BASE_PATH = '/dashboard/database/sewa'
 
 const KATEGORI_STYLE: Record<string, React.CSSProperties> = {
   PERSIAPAN:  { backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' },
@@ -50,27 +52,90 @@ const thStyle = {
 }
 const tdStyle = { padding: '14px 20px', fontSize: '13px', color: NAVY, verticalAlign: 'middle' as const }
 
-export default async function HargaSewaPage() {
+const KATEGORI_ORDER = ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP']
+
+const TABS = [
+  { value: null,         label: 'Semua' },
+  { value: 'PERSIAPAN',  label: 'Persiapan' },
+  { value: 'STRUKTUR',   label: 'Struktur' },
+  { value: 'ARSITEKTUR', label: 'Arsitektur' },
+  { value: 'MEP',        label: 'MEP' },
+]
+
+export default async function HargaSewaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kategori?: string }>
+}) {
+  const sp = await searchParams
+  const activeKategori = sp.kategori ?? null
+
   const supabase = await createServerSupabaseClient()
-  const { data: items, error } = await supabase
+  const { data: rawItems, error } = await supabase
     .from('harga_sewa')
     .select('id, nama_item, satuan, harga, kategori, berlaku_mulai, catatan')
-    .order('nama_item', { ascending: true })
+
+  const allItems = (rawItems ?? []).slice().sort((a, b) => {
+    const ai = KATEGORI_ORDER.indexOf(a.kategori ?? '')
+    const bi = KATEGORI_ORDER.indexOf(b.kategori ?? '')
+    const ka = ai === -1 ? KATEGORI_ORDER.length : ai
+    const kb = bi === -1 ? KATEGORI_ORDER.length : bi
+    if (ka !== kb) return ka - kb
+    return (a.nama_item ?? '').localeCompare(b.nama_item ?? '', 'id')
+  })
+
+  const items = activeKategori === null
+    ? allItems
+    : allItems.filter(i => i.kategori === activeKategori)
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: '600', color: NAVY, margin: '0 0 6px 0' }}>Harga Sewa</h1>
-          <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>{items?.length ?? 0} item terdaftar</p>
+          <p style={{ fontSize: '13px', color: SECONDARY, margin: 0 }}>{items.length} item{activeKategori ? ` · ${activeKategori}` : ' terdaftar'}</p>
         </div>
-        <Link href="/dashboard/database/sewa/tambah" style={{
+        <Link href={`${BASE_PATH}/tambah`} style={{
           display: 'inline-flex', alignItems: 'center', padding: '10px 20px',
           backgroundColor: NAVY, color: '#FAF5EB', borderRadius: '8px',
           fontSize: '13px', fontWeight: '700', textDecoration: 'none', letterSpacing: '0.5px',
         }}>
           + Tambah
         </Link>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'], marginBottom: '20px', borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ display: 'flex', gap: '0', minWidth: 'max-content' }}>
+          {TABS.map(tab => {
+            const active = activeKategori === tab.value
+            const count = tab.value === null ? allItems.length : allItems.filter(i => i.kategori === tab.value).length
+            return (
+              <Link
+                key={tab.label}
+                href={tab.value === null ? BASE_PATH : `${BASE_PATH}?kategori=${tab.value}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '10px 18px', fontSize: '13px', textDecoration: 'none',
+                  fontWeight: active ? '700' : '400',
+                  color: active ? GOLD : NAVY,
+                  opacity: active ? 1 : 0.5,
+                  borderBottom: active ? `2px solid ${GOLD}` : '2px solid transparent',
+                  marginBottom: '-1px', whiteSpace: 'nowrap', transition: 'all 0.15s',
+                }}
+              >
+                {tab.label}
+                <span style={{
+                  backgroundColor: active ? 'rgba(212,175,55,0.15)' : 'rgba(13,46,66,0.07)',
+                  color: active ? '#7a5c00' : SECONDARY,
+                  padding: '1px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: '600',
+                }}>
+                  {count}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
       {error && (
