@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -19,6 +19,13 @@ const SUB_KATEGORI_MAP: Partial<Record<RapDivisi, string[]>> = {
   STRUKTUR:   ['Struktur Utama', 'Struktur Baja', 'Struktur Kayu', 'Struktur Baja Ringan', 'Waterproofing'],
   ARSITEKTUR: ['Pasangan Dinding', 'Plester Aci', 'Pek Pasang Ceiling', 'Pasang Keramik / Granite Tile / Batu Alam', 'Finishing Cat dan Politur', 'Pek Daun Pintu Jendela', 'Aluminium'],
   MEP:        ['Pek Mekanikal', 'Pek Elektrikal', 'Pek Plumbing'],
+}
+
+type HargaUpahRow = {
+  id: string
+  nama_pekerjaan: string
+  satuan: string | null
+  harga: number | null
 }
 
 function formatRupiah(n: number) {
@@ -62,19 +69,63 @@ export default function TambahRapItemPage() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [hargaUpahList, setHargaUpahList] = useState<HargaUpahRow[]>([])
+  const [selectedHargaUpahId, setSelectedHargaUpahId] = useState<string | null>(null)
+  const [dbHarga, setDbHarga] = useState<number | null>(null)
 
   const totalRap = (parseFloat(form.volume) || 0) * (parseFloat(form.harga_satuan) || 0)
   const subOptions = SUB_KATEGORI_MAP[form.divisi as RapDivisi] ?? null
   const isManualMode = form.sub_divisi === '__manual__'
+  const effectiveSub = isManualMode ? null : form.sub_divisi
+
+  useEffect(() => {
+    setHargaUpahList([])
+    setSelectedHargaUpahId(null)
+    setDbHarga(null)
+    if (!effectiveSub) return
+    const supabase = createClient()
+    supabase
+      .from('harga_upah')
+      .select('id, nama_pekerjaan, satuan, harga')
+      .eq('kategori', form.divisi)
+      .eq('sub_kategori', effectiveSub)
+      .order('nama_pekerjaan', { ascending: true })
+      .then(({ data }) => setHargaUpahList((data as HargaUpahRow[]) ?? []))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.divisi, effectiveSub])
+
+  function handleSelectNamaPekerjaan(e: React.ChangeEvent<HTMLSelectElement>) {
+    const val = e.target.value
+    if (val === '__custom__' || val === '') {
+      setSelectedHargaUpahId(null)
+      setDbHarga(null)
+      return
+    }
+    const item = hargaUpahList.find(h => h.id === val)
+    if (!item) return
+    setSelectedHargaUpahId(item.id)
+    setDbHarga(item.harga)
+    setForm(prev => ({
+      ...prev,
+      deskripsi: item.nama_pekerjaan,
+      satuan: item.satuan ?? prev.satuan,
+      harga_satuan: item.harga != null ? String(item.harga) : prev.harga_satuan,
+    }))
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
     const { name, value } = e.target
     if (name === 'divisi') {
       setForm(prev => ({ ...prev, divisi: value as RapDivisi, sub_divisi: '' }))
+      setSelectedHargaUpahId(null)
+      setDbHarga(null)
     } else {
       setForm(prev => ({ ...prev, [name]: value }))
     }
   }
+
+  const hargaSatuan = parseFloat(form.harga_satuan) || 0
+  const isHargaOverridden = selectedHargaUpahId !== null && dbHarga !== null && hargaSatuan !== dbHarga
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -93,6 +144,7 @@ export default function TambahRapItemPage() {
       satuan: form.satuan.trim() || null,
       volume: form.volume ? parseFloat(form.volume) : null,
       harga_satuan: form.harga_satuan ? parseFloat(form.harga_satuan) : null,
+      harga_upah_id: selectedHargaUpahId ?? null,
     })
 
     if (error) { setError(error.message); setLoading(false); return }
@@ -131,6 +183,8 @@ export default function TambahRapItemPage() {
                     onChange={e => {
                       if (e.target.value === '__manual__') {
                         setForm(prev => ({ ...prev, sub_divisi: '__manual__' }))
+                        setSelectedHargaUpahId(null)
+                        setDbHarga(null)
                       } else {
                         setForm(prev => ({ ...prev, sub_divisi: e.target.value }))
                       }
@@ -145,7 +199,7 @@ export default function TambahRapItemPage() {
                   </select>
                   {isManualMode && (
                     <input
-                      value=""
+                      value={form.sub_divisi === '__manual__' ? '' : form.sub_divisi}
                       onChange={e => setForm(prev => ({ ...prev, sub_divisi: e.target.value }))}
                       placeholder="Ketik sub kategori..."
                       style={inputStyle}
@@ -164,6 +218,23 @@ export default function TambahRapItemPage() {
               )}
             </Field>
           </div>
+
+          {hargaUpahList.length > 0 && (
+            <Field label="Nama Pekerjaan">
+              <select
+                value={selectedHargaUpahId ?? '__custom__'}
+                onChange={handleSelectNamaPekerjaan}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+              >
+                <option value="__custom__" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>+ Tambah Pekerjaan Custom</option>
+                {hargaUpahList.map(h => (
+                  <option key={h.id} value={h.id} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>
+                    {h.nama_pekerjaan}{h.satuan ? ` — Rp ${h.harga?.toLocaleString('id-ID') ?? '?'} / ${h.satuan}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           <Field label="Deskripsi *">
             <textarea name="deskripsi" value={form.deskripsi} onChange={handleChange}
@@ -185,6 +256,18 @@ export default function TambahRapItemPage() {
           <Field label="Harga Satuan (Rp)">
             <input type="number" name="harga_satuan" value={form.harga_satuan} onChange={handleChange}
               placeholder="0" min="0" step="1000" style={inputStyle} />
+            {isHargaOverridden && (
+              <div style={{ marginTop: '6px', fontSize: '12px', color: SECONDARY }}>
+                Harga DB: {formatRupiah(dbHarga!)}{' '}
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, harga_satuan: String(dbHarga!) }))}
+                  style={{ background: 'none', border: 'none', color: GOLD, fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: 0 }}
+                >
+                  [Reset]
+                </button>
+              </div>
+            )}
           </Field>
 
           <div style={{
