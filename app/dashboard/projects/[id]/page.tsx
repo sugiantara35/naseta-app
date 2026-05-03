@@ -162,6 +162,7 @@ export default async function ProjectDetailPage({
       .from('spk')
       .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap)')
       .eq('project_id', id)
+      .in('status', ['AKTIF', 'SELESAI'])
       .order('created_at', { ascending: true })
     allSpk = (data as unknown as SpkRow[]) ?? []
 
@@ -185,6 +186,7 @@ export default async function ProjectDetailPage({
         .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap)')
         .eq('project_id', id)
         .eq('divisi', activeTab)
+        .in('status', ['AKTIF', 'SELESAI'])
         .order('created_at', { ascending: false }),
       supabase
         .from('rap_items')
