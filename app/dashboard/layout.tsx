@@ -21,6 +21,15 @@ function HamburgerIcon() {
   )
 }
 
+function HomeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  )
+}
+
 function FolderIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -268,10 +277,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: '16px 12px' }}>
-          <Link href="/dashboard/projects" onClick={closeSidebar} style={menuItemStyle('/dashboard/projects')}>
-            <FolderIcon />
-            Projects
+          <Link href="/dashboard" onClick={closeSidebar} style={menuItemStyle('/dashboard')}>
+            <HomeIcon />
+            Home
           </Link>
+
+          <div style={{ marginTop: '4px' }}>
+            <Link href="/dashboard/projects" onClick={closeSidebar} style={menuItemStyle('/dashboard/projects')}>
+              <FolderIcon />
+              Projects
+            </Link>
+          </div>
 
           <div style={{ marginTop: '4px' }}>
             <Link href="/dashboard/pengajuan" onClick={closeSidebar} style={menuItemStyle('/dashboard/pengajuan')}>
