@@ -98,6 +98,16 @@ function LogoutIcon() {
   )
 }
 
+function AlertIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  )
+}
+
 const ROLE_BADGE: Record<string, React.CSSProperties> = {
   ADMIN:        { backgroundColor: 'rgba(212,175,55,0.25)', color: '#D4AF37', border: '1px solid rgba(212,175,55,0.4)' },
   DIREKTUR:     { backgroundColor: 'rgba(167,139,250,0.2)', color: '#c4b5fd', border: '1px solid rgba(167,139,250,0.35)' },
@@ -120,6 +130,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [profile, setProfile] = useState<SidebarProfile | null>(null)
+  const [overridePendingCount, setOverridePendingCount] = useState(0)
 
   useEffect(() => {
     function checkMobile() {
@@ -140,7 +151,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .select('nama, role')
         .eq('id', user.id)
         .single()
-      if (data) setProfile(data as SidebarProfile)
+      if (data) {
+        setProfile(data as SidebarProfile)
+        if (['ADMIN', 'DIREKTUR'].includes(data.role)) {
+          const { count } = await supabase
+            .from('rap_overrides')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'PENDING')
+          setOverridePendingCount(count ?? 0)
+        }
+      }
     }
     fetchProfile()
   }, [])
@@ -295,6 +315,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Pengajuan
             </Link>
           </div>
+
+          {['ADMIN', 'DIREKTUR'].includes(profile?.role ?? '') && (
+            <div style={{ marginTop: '4px' }}>
+              <Link href="/dashboard/override" onClick={closeSidebar} style={{
+                ...menuItemStyle('/dashboard/override'),
+                justifyContent: 'space-between',
+              }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <AlertIcon />
+                  Override
+                </span>
+                {overridePendingCount > 0 && (
+                  <span style={{
+                    backgroundColor: '#dc2626', color: '#FFFFFF',
+                    borderRadius: '10px', fontSize: '10px', fontWeight: '700',
+                    padding: '1px 7px', minWidth: '18px', textAlign: 'center',
+                  }}>
+                    {overridePendingCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+          )}
 
           <div style={{ marginTop: '4px' }}>
             <button
