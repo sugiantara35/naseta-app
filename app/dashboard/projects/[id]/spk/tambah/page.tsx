@@ -1,12 +1,5 @@
 'use client'
 
-// SQL to run in Supabase before push:
-// alter table spk add column if not exists sub_kategori text;
-// alter table spk add column if not exists alasan_batal text;
-// alter table spk add column if not exists satuan text;
-// alter table spk add column if not exists volume numeric;
-// alter table spk add column if not exists harga_satuan numeric;
-
 import { useState, useEffect } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
@@ -39,15 +32,15 @@ function formatRupiah(n: number) {
 
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
-    <div style={{ marginBottom: '20px' }}>
+    <div style={{ marginBottom: '16px' }}>
       <label style={{
         display: 'block', fontSize: '11px', color: SECONDARY,
-        marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600',
+        marginBottom: '6px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600',
       }}>
         {label}
       </label>
       {children}
-      {hint && <p style={{ fontSize: '11px', color: SECONDARY, margin: '5px 0 0', opacity: 0.7 }}>{hint}</p>}
+      {hint && <p style={{ fontSize: '11px', color: SECONDARY, margin: '4px 0 0', opacity: 0.7 }}>{hint}</p>}
     </div>
   )
 }
@@ -59,7 +52,26 @@ const inputStyle: React.CSSProperties = {
 }
 
 type Vendor = { id: string; nama: string; kode: string; sub_kategori: string | null }
-type RapItem = { id: string; sub_divisi: string | null; deskripsi: string; total_rap: number | null }
+type RapItem = {
+  id: string
+  sub_divisi: string | null
+  deskripsi: string
+  total_rap: number | null
+  satuan: string | null
+  harga_satuan: number | null
+}
+type SpkItem = {
+  id: string
+  rap_item_id: string | null
+  deskripsi: string
+  satuan: string
+  volume: string
+  harga_satuan: string
+  itemError?: string
+}
+type RapSaldo = { totalRap: number; totalSpkAktif: number; saldo: number }
+
+let itemCounter = 1
 
 export default function TambahSpkPage() {
   const router = useRouter()
@@ -70,40 +82,40 @@ export default function TambahSpkPage() {
 
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [rapItems, setRapItems] = useState<RapItem[]>([])
+
   const [form, setForm] = useState({
     nomor_spk: '',
     sub_kategori: '',
     deskripsi: '',
     vendor_id: '',
-    pp_rap: '',
+    tanggal_spk: '',
+  })
+  const [subKategoriManual, setSubKategoriManual] = useState(false)
+  const [generating, setGenerating] = useState(false)
+
+  const [items, setItems] = useState<SpkItem[]>([{
+    id: 'item-1',
+    rap_item_id: null,
+    deskripsi: '',
     satuan: '',
     volume: '',
     harga_satuan: '',
-    deal_spk: '',
-    tanggal_spk: '',
-    rap_item_id: '',
-  })
-  const [dealTouched, setDealTouched] = useState(false)
-  const [subKategoriManual, setSubKategoriManual] = useState(false)
+  }])
+  const [itemSaldos, setItemSaldos] = useState<Record<string, RapSaldo>>({})
+
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [generating, setGenerating] = useState(false)
-  const [rapSaldoInfo, setRapSaldoInfo] = useState<{
-    totalRap: number; totalSpkAktif: number; saldo: number
-  } | null>(null)
-  const [rapSaldoLoading, setRapSaldoLoading] = useState(false)
   const [showOverrideModal, setShowOverrideModal] = useState(false)
   const [overrideAlasan, setOverrideAlasan] = useState('')
   const [overrideLoading, setOverrideLoading] = useState(false)
-  const [pendingOverride, setPendingOverride] = useState<{ jumlahOver: number; persen: number } | null>(null)
+  const [pendingOverride, setPendingOverride] = useState<{
+    overItems: Array<{ deskripsi: string; jumlahOver: number }>
+    totalOver: number
+  } | null>(null)
 
   const subOptions = SUB_KATEGORI_MAP[divisi as RapDivisi] ?? null
-  const isManualMode = subKategoriManual
-
-  // Filter vendors by sub_kategori
-  const matchedVendors = form.sub_kategori
-    ? vendors.filter(v => v.sub_kategori === form.sub_kategori)
-    : []
+  const totalDeal = items.reduce((s, it) => s + (parseFloat(it.volume) || 0) * (parseFloat(it.harga_satuan) || 0), 0)
+  const matchedVendors = form.sub_kategori ? vendors.filter(v => v.sub_kategori === form.sub_kategori) : []
   const displayVendors = matchedVendors.length > 0 ? matchedVendors : vendors
   const vendorHint = form.sub_kategori
     ? matchedVendors.length > 0
@@ -111,15 +123,14 @@ export default function TambahSpkPage() {
       : 'Tidak ada vendor spesifik, menampilkan semua vendor aktif.'
     : undefined
 
-  const computedDeal = (parseFloat(form.volume) || 0) * (parseFloat(form.harga_satuan) || 0)
-
   useEffect(() => {
     const supabase = createClient()
     async function fetchData() {
       const [{ data: projectData }, { data: vendorData }, { data: rapData }] = await Promise.all([
         supabase.from('projects').select('kode').eq('id', projectId).single(),
         supabase.from('vendors').select('id, nama, kode, sub_kategori').eq('status', 'AKTIF').order('nama'),
-        supabase.from('rap_items').select('id, sub_divisi, deskripsi, total_rap')
+        supabase.from('rap_items')
+          .select('id, sub_divisi, deskripsi, total_rap, satuan, harga_satuan')
           .eq('project_id', projectId).eq('divisi', divisi).order('created_at', { ascending: true }),
       ])
 
@@ -153,97 +164,104 @@ export default function TambahSpkPage() {
     fetchData()
   }, [projectId, divisi])
 
-  useEffect(() => {
-    if (!form.rap_item_id) { setRapSaldoInfo(null); return }
-    const rapItem = rapItems.find(r => r.id === form.rap_item_id)
+  // ── Item helpers ──────────────────────────────────────────────────────────
+
+  function addItem() {
+    itemCounter++
+    setItems(prev => [...prev, {
+      id: `item-${itemCounter}`,
+      rap_item_id: null,
+      deskripsi: '',
+      satuan: '',
+      volume: '',
+      harga_satuan: '',
+    }])
+  }
+
+  function removeItem(id: string) {
+    setItems(prev => prev.filter(it => it.id !== id))
+  }
+
+  function updateItem(id: string, updates: Partial<Omit<SpkItem, 'id' | 'itemError'>>) {
+    setItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it))
+  }
+
+  async function handleSelectRap(itemId: string, rapItemId: string | null) {
+    if (!rapItemId) {
+      updateItem(itemId, { rap_item_id: null })
+      return
+    }
+    const rapItem = rapItems.find(r => r.id === rapItemId)
     if (!rapItem) return
+
+    updateItem(itemId, {
+      rap_item_id: rapItemId,
+      deskripsi: rapItem.deskripsi,
+      satuan: rapItem.satuan ?? '',
+      harga_satuan: rapItem.harga_satuan != null ? String(rapItem.harga_satuan) : '',
+    })
+
+    if (itemSaldos[rapItemId] !== undefined) return
+
     const totalRap = rapItem.total_rap ?? 0
-    setRapSaldoLoading(true)
-    createClient()
+    const { data } = await createClient()
       .from('spk')
       .select('deal_spk')
-      .eq('rap_item_id', form.rap_item_id)
+      .eq('rap_item_id', rapItemId)
       .in('status', ['AKTIF', 'SELESAI'])
-      .then(({ data }) => {
-        const totalSpkAktif = (data ?? []).reduce((s: number, r: { deal_spk: number | null }) => s + (r.deal_spk ?? 0), 0)
-        setRapSaldoInfo({ totalRap, totalSpkAktif, saldo: totalRap - totalSpkAktif })
-        setRapSaldoLoading(false)
-      })
-  }, [form.rap_item_id, rapItems])
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
-    const { name, value } = e.target
-    if (name === 'deal_spk') {
-      setDealTouched(true)
-      setForm(prev => ({ ...prev, deal_spk: value }))
-    } else if (name === 'volume' || name === 'harga_satuan') {
-      setForm(prev => {
-        const newVolume = name === 'volume' ? value : prev.volume
-        const newHarga = name === 'harga_satuan' ? value : prev.harga_satuan
-        const computed = (parseFloat(newVolume) || 0) * (parseFloat(newHarga) || 0)
-        return {
-          ...prev,
-          [name]: value,
-          deal_spk: dealTouched ? prev.deal_spk : (computed > 0 ? String(computed) : ''),
-        }
-      })
-    } else {
-      setForm(prev => ({ ...prev, [name]: value }))
-    }
+    const totalSpkAktif = (data ?? []).reduce((s: number, r: { deal_spk: number | null }) => s + (r.deal_spk ?? 0), 0)
+    setItemSaldos(prev => ({
+      ...prev,
+      [rapItemId]: { totalRap, totalSpkAktif, saldo: totalRap - totalSpkAktif },
+    }))
   }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
 
     if (!form.nomor_spk.trim()) return setError('Nomor SPK wajib diisi.')
-    if (!form.deskripsi.trim()) return setError('Deskripsi wajib diisi.')
+    if (!form.deskripsi.trim()) return setError('Deskripsi pekerjaan wajib diisi.')
 
-    if (rapSaldoInfo && form.deal_spk) {
-      const dealSpkValue = parseFloat(form.deal_spk) || 0
-      const jumlahOver = (dealSpkValue + rapSaldoInfo.totalSpkAktif) - rapSaldoInfo.totalRap
-      if (jumlahOver > 0) {
-        const persen = rapSaldoInfo.totalRap > 0
-          ? Math.round((jumlahOver / rapSaldoInfo.totalRap) * 100)
-          : 0
-        setPendingOverride({ jumlahOver, persen })
-        setShowOverrideModal(true)
-        return
-      }
+    let hasItemError = false
+    const validated = items.map(item => {
+      const errs: string[] = []
+      if (!item.deskripsi.trim()) errs.push('Deskripsi wajib diisi')
+      if (!item.satuan.trim()) errs.push('Satuan wajib diisi')
+      if (!(parseFloat(item.volume) > 0)) errs.push('Volume harus > 0')
+      if (errs.length > 0) { hasItemError = true; return { ...item, itemError: errs.join(' · ') } }
+      return { ...item, itemError: undefined }
+    })
+    if (hasItemError) { setItems(validated); return }
+
+    const overItems: Array<{ deskripsi: string; jumlahOver: number }> = []
+    for (const item of items) {
+      if (!item.rap_item_id) continue
+      const saldo = itemSaldos[item.rap_item_id]
+      if (!saldo) continue
+      const thisTotal = (parseFloat(item.volume) || 0) * (parseFloat(item.harga_satuan) || 0)
+      const jumlahOver = (thisTotal + saldo.totalSpkAktif) - saldo.totalRap
+      if (jumlahOver > 0) overItems.push({ deskripsi: item.deskripsi || 'Item tanpa deskripsi', jumlahOver })
     }
 
-    setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.from('spk').insert({
-      project_id: projectId,
-      divisi,
-      sub_kategori: form.sub_kategori.trim() || null,
-      nomor_spk: form.nomor_spk.trim(),
-      deskripsi: form.deskripsi.trim(),
-      vendor_id: form.vendor_id || null,
-      pp_rap: form.pp_rap ? parseFloat(form.pp_rap) : null,
-      satuan: form.satuan.trim() || null,
-      volume: form.volume ? parseFloat(form.volume) : null,
-      harga_satuan: form.harga_satuan ? parseFloat(form.harga_satuan) : null,
-      deal_spk: form.deal_spk ? parseFloat(form.deal_spk) : null,
-      status: 'DRAFT',
-      tanggal_spk: form.tanggal_spk || null,
-      rap_item_id: form.rap_item_id || null,
-    })
+    if (overItems.length > 0) {
+      setPendingOverride({ overItems, totalOver: overItems.reduce((s, i) => s + i.jumlahOver, 0) })
+      setShowOverrideModal(true)
+      return
+    }
 
-    if (error) { setError(error.message); setLoading(false); return }
-    router.push(`/dashboard/projects/${projectId}?tab=${divisi}`)
+    await doSubmit('DRAFT')
   }
 
-  async function handleOverrideSubmit() {
-    if (!overrideAlasan.trim()) { setError('Alasan request override wajib diisi.'); return }
-    if (!pendingOverride) return
-    setOverrideLoading(true)
-    setError('')
+  async function doSubmit(status: 'DRAFT' | 'MENUNGGU_OVERRIDE', alasanOverride?: string) {
+    if (status === 'MENUNGGU_OVERRIDE') setOverrideLoading(true)
+    else setLoading(true)
 
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setError('Session expired, silakan login ulang.'); setOverrideLoading(false); return }
+    const firstItem = items[0]
 
     const { data: spkData, error: spkError } = await supabase.from('spk').insert({
       project_id: projectId,
@@ -252,42 +270,67 @@ export default function TambahSpkPage() {
       nomor_spk: form.nomor_spk.trim(),
       deskripsi: form.deskripsi.trim(),
       vendor_id: form.vendor_id || null,
-      pp_rap: form.pp_rap ? parseFloat(form.pp_rap) : null,
-      satuan: form.satuan.trim() || null,
-      volume: form.volume ? parseFloat(form.volume) : null,
-      harga_satuan: form.harga_satuan ? parseFloat(form.harga_satuan) : null,
-      deal_spk: form.deal_spk ? parseFloat(form.deal_spk) : null,
-      status: 'MENUNGGU_OVERRIDE',
+      pp_rap: null,
+      satuan: firstItem?.satuan?.trim() || null,
+      volume: firstItem?.volume ? parseFloat(firstItem.volume) : null,
+      harga_satuan: firstItem?.harga_satuan ? parseFloat(firstItem.harga_satuan) : null,
+      deal_spk: totalDeal || null,
+      status,
       tanggal_spk: form.tanggal_spk || null,
-      rap_item_id: form.rap_item_id || null,
+      rap_item_id: null,
     }).select('id').single()
 
     if (spkError || !spkData) {
       setError(spkError?.message ?? 'Gagal menyimpan SPK.')
-      setOverrideLoading(false)
+      setLoading(false); setOverrideLoading(false)
       return
     }
 
-    const { error: overrideError } = await supabase.from('rap_overrides').insert({
-      rap_item_id: form.rap_item_id || null,
-      spk_id: spkData.id,
-      requested_by: user.id,
-      jumlah_over: pendingOverride.jumlahOver,
-      alasan_request: overrideAlasan.trim(),
-      status: 'PENDING',
-    })
+    const { error: itemsError } = await supabase.from('spk_items').insert(
+      items.map(item => ({
+        spk_id: spkData.id,
+        rap_item_id: item.rap_item_id || null,
+        deskripsi: item.deskripsi.trim(),
+        satuan: item.satuan.trim() || null,
+        volume: item.volume ? parseFloat(item.volume) : null,
+        harga_satuan: item.harga_satuan ? parseFloat(item.harga_satuan) : null,
+      }))
+    )
 
-    if (overrideError) {
-      setError(overrideError.message)
-      setOverrideLoading(false)
+    if (itemsError) {
+      await supabase.from('spk').delete().eq('id', spkData.id)
+      setError(itemsError.message)
+      setLoading(false); setOverrideLoading(false)
       return
+    }
+
+    if (status === 'MENUNGGU_OVERRIDE' && pendingOverride && alasanOverride) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const firstOverItem = items.find(it => it.rap_item_id && itemSaldos[it.rap_item_id])
+        await supabase.from('rap_overrides').insert({
+          rap_item_id: firstOverItem?.rap_item_id || null,
+          spk_id: spkData.id,
+          requested_by: user.id,
+          jumlah_over: pendingOverride.totalOver,
+          alasan_request: alasanOverride,
+          status: 'PENDING',
+        })
+      }
     }
 
     router.push(`/dashboard/projects/${projectId}?tab=${divisi}`)
   }
 
+  async function handleOverrideSubmit() {
+    if (!overrideAlasan.trim()) { setError('Alasan request override wajib diisi.'); return }
+    await doSubmit('MENUNGGU_OVERRIDE', overrideAlasan.trim())
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
-    <div style={{ maxWidth: '640px' }}>
+    <div style={{ maxWidth: '720px' }}>
       <div style={{ marginBottom: '28px' }}>
         <button onClick={() => router.push(`/dashboard/projects/${projectId}?tab=${divisi}`)}
           style={{ background: 'none', border: 'none', color: SECONDARY, fontSize: '12px', cursor: 'pointer', padding: 0, marginBottom: '12px' }}>
@@ -307,19 +350,35 @@ export default function TambahSpkPage() {
         SPK baru akan berstatus <strong style={{ color: NAVY }}>DRAFT</strong>. SPK akan aktif setelah disetujui Site Manager.
       </div>
 
-      <div style={{ backgroundColor: CARD_BG, border: `1px solid rgba(13,46,66,0.15)`, borderRadius: '12px', padding: '32px', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
+
+        {/* ── SECTION HEADER ──────────────────────────────────────────────── */}
+        <div style={{
+          backgroundColor: CARD_BG, border: `1px solid rgba(13,46,66,0.15)`,
+          borderRadius: '12px', padding: '28px 32px', marginBottom: '16px',
+          boxShadow: '0 1px 3px rgba(13,46,66,0.06)',
+        }}>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: SECONDARY, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 20px 0' }}>
+            Informasi Umum SPK
+          </p>
 
           {/* Nomor SPK + Tanggal */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Nomor SPK *">
-              <input name="nomor_spk" value={form.nomor_spk} onChange={handleChange}
+              <input
+                value={form.nomor_spk}
+                onChange={e => setForm(prev => ({ ...prev, nomor_spk: e.target.value }))}
                 placeholder={generating ? 'Generating...' : 'Auto-generate'}
-                style={{ ...inputStyle, fontFamily: 'monospace' }} />
+                style={{ ...inputStyle, fontFamily: 'monospace' }}
+              />
             </Field>
             <Field label="Tanggal SPK">
-              <input type="date" name="tanggal_spk" value={form.tanggal_spk} onChange={handleChange}
-                style={{ ...inputStyle, colorScheme: 'light' }} />
+              <input
+                type="date"
+                value={form.tanggal_spk}
+                onChange={e => setForm(prev => ({ ...prev, tanggal_spk: e.target.value }))}
+                style={{ ...inputStyle, colorScheme: 'light' }}
+              />
             </Field>
           </div>
 
@@ -328,7 +387,7 @@ export default function TambahSpkPage() {
             {subOptions ? (
               <>
                 <select
-                  value={isManualMode ? '__manual__' : form.sub_kategori}
+                  value={subKategoriManual ? '__manual__' : form.sub_kategori}
                   onChange={e => {
                     if (e.target.value === '__manual__') {
                       setSubKategoriManual(true)
@@ -338,7 +397,7 @@ export default function TambahSpkPage() {
                       setForm(prev => ({ ...prev, sub_kategori: e.target.value, vendor_id: '' }))
                     }
                   }}
-                  style={{ ...inputStyle, cursor: 'pointer', marginBottom: isManualMode ? '8px' : 0 }}
+                  style={{ ...inputStyle, cursor: 'pointer', marginBottom: subKategoriManual ? '8px' : 0 }}
                 >
                   <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Sub Kategori —</option>
                   {subOptions.map(s => (
@@ -346,7 +405,7 @@ export default function TambahSpkPage() {
                   ))}
                   <option value="__manual__" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Isi Manual —</option>
                 </select>
-                {isManualMode && (
+                {subKategoriManual && (
                   <input
                     value={form.sub_kategori}
                     onChange={e => setForm(prev => ({ ...prev, sub_kategori: e.target.value, vendor_id: '' }))}
@@ -358,28 +417,21 @@ export default function TambahSpkPage() {
               </>
             ) : (
               <input
-                name="sub_kategori"
                 value={form.sub_kategori}
-                onChange={e => {
-                  setForm(prev => ({ ...prev, sub_kategori: e.target.value, vendor_id: '' }))
-                }}
+                onChange={e => setForm(prev => ({ ...prev, sub_kategori: e.target.value, vendor_id: '' }))}
                 placeholder="Opsional"
                 style={inputStyle}
               />
             )}
           </Field>
 
-          {/* Deskripsi */}
-          <Field label="Deskripsi Pekerjaan *">
-            <textarea name="deskripsi" value={form.deskripsi} onChange={handleChange}
-              placeholder="Contoh: Pekerjaan galian tanah dan pondasi..." rows={3}
-              style={{ ...inputStyle, resize: 'vertical', lineHeight: '1.5' }} />
-          </Field>
-
-          {/* Vendor (filtered by sub_kategori) */}
+          {/* Vendor */}
           <Field label="Vendor" hint={vendorHint}>
-            <select name="vendor_id" value={form.vendor_id} onChange={handleChange}
-              style={{ ...inputStyle, cursor: 'pointer' }}>
+            <select
+              value={form.vendor_id}
+              onChange={e => setForm(prev => ({ ...prev, vendor_id: e.target.value }))}
+              style={{ ...inputStyle, cursor: 'pointer' }}
+            >
               <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Pilih Vendor —</option>
               {displayVendors.map(v => (
                 <option key={v.id} value={v.id} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>
@@ -389,121 +441,251 @@ export default function TambahSpkPage() {
             </select>
           </Field>
 
-          {/* RAP Rujukan */}
-          <Field
-            label="RAP Rujukan (opsional)"
-            hint={rapItems.length === 0 ? 'Belum ada item RAP untuk kategori ini.' : undefined}
-          >
-            <select name="rap_item_id" value={form.rap_item_id} onChange={handleChange}
-              style={{ ...inputStyle, cursor: 'pointer' }}
-              disabled={rapItems.length === 0}
-            >
-              <option value="" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>— Tidak ada RAP rujukan —</option>
-              {rapItems.map(r => (
-                <option key={r.id} value={r.id} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>
-                  {r.sub_divisi ? `[${r.sub_divisi}] ` : ''}{r.deskripsi}{r.total_rap != null ? ` (RAP: ${formatRupiah(r.total_rap)})` : ''}
-                </option>
-              ))}
-            </select>
+          {/* Deskripsi Pekerjaan Umum */}
+          <Field label="Deskripsi Pekerjaan Umum *">
+            <textarea
+              value={form.deskripsi}
+              onChange={e => setForm(prev => ({ ...prev, deskripsi: e.target.value }))}
+              placeholder="Contoh: Pasangan Pek Lt 2, Pekerjaan galian tanah dan pondasi..."
+              rows={2}
+              style={{ ...inputStyle, resize: 'vertical', lineHeight: '1.5', marginBottom: 0 }}
+            />
           </Field>
+        </div>
 
-          {/* RAP Saldo Info */}
-          {form.rap_item_id && (
-            <div style={{ marginBottom: '20px', marginTop: '-12px' }}>
-              {rapSaldoLoading ? (
-                <p style={{ fontSize: '12px', color: SECONDARY, margin: 0, opacity: 0.7 }}>Memuat saldo RAP...</p>
-              ) : rapSaldoInfo ? (
-                <div style={{
-                  backgroundColor: rapSaldoInfo.saldo <= 0 ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)',
-                  border: `1px solid ${rapSaldoInfo.saldo <= 0 ? 'rgba(220,38,38,0.3)' : 'rgba(22,163,74,0.3)'}`,
-                  borderRadius: '8px', padding: '12px 16px', fontSize: '13px',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: SECONDARY }}>Saldo RAP saat ini:</span>
-                    <strong style={{ color: rapSaldoInfo.saldo <= 0 ? '#dc2626' : '#166534' }}>
-                      {formatRupiah(rapSaldoInfo.saldo)}
-                    </strong>
+        {/* ── SECTION ITEMS ────────────────────────────────────────────────── */}
+        <div style={{
+          backgroundColor: CARD_BG, border: `1px solid rgba(13,46,66,0.15)`,
+          borderRadius: '12px', padding: '28px 32px', marginBottom: '16px',
+          boxShadow: '0 1px 3px rgba(13,46,66,0.06)',
+        }}>
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '700', color: SECONDARY, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px 0' }}>
+              Detail Item Pekerjaan
+            </p>
+            <p style={{ fontSize: '12px', color: SECONDARY, margin: 0, opacity: 0.8 }}>
+              Tambah satu atau lebih item pekerjaan
+            </p>
+          </div>
+
+          {items.map((item, index) => {
+            const totalItem = (parseFloat(item.volume) || 0) * (parseFloat(item.harga_satuan) || 0)
+            const saldo = item.rap_item_id ? itemSaldos[item.rap_item_id] : null
+            const afterSaldo = saldo ? saldo.saldo - totalItem : null
+
+            return (
+              <div key={item.id} style={{
+                borderBottom: index < items.length - 1 ? `1px solid ${BORDER}` : 'none',
+                paddingBottom: index < items.length - 1 ? '28px' : 0,
+                marginBottom: index < items.length - 1 ? '28px' : 0,
+              }}>
+                {/* Item row header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{
+                    fontSize: '12px', fontWeight: '700', color: NAVY,
+                    backgroundColor: 'rgba(13,46,66,0.07)', borderRadius: '6px',
+                    padding: '3px 10px',
+                  }}>
+                    Item {index + 1}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {!item.rap_item_id && (item.deskripsi || index === 0) && (
+                      <span style={{
+                        backgroundColor: '#FEF3C7', color: '#92400E',
+                        border: '1px solid #FCD34D',
+                        borderRadius: '4px', fontSize: '10px', fontWeight: '700',
+                        padding: '2px 8px', letterSpacing: '0.3px',
+                      }}>
+                        ⚠️ Item tanpa link RAP
+                      </span>
+                    )}
+                    {items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        style={{
+                          background: 'none', border: 'none', color: '#dc2626',
+                          fontSize: '12px', cursor: 'pointer', padding: '2px 6px',
+                          fontWeight: '500',
+                        }}
+                      >
+                        Hapus
+                      </button>
+                    )}
                   </div>
-                  {form.deal_spk && parseFloat(form.deal_spk) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '6px', paddingTop: '6px', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                      <span style={{ color: SECONDARY }}>Akan berkurang menjadi:</span>
-                      <strong style={{ color: (rapSaldoInfo.saldo - (parseFloat(form.deal_spk) || 0)) < 0 ? '#dc2626' : '#166534' }}>
-                        {formatRupiah(rapSaldoInfo.saldo - (parseFloat(form.deal_spk) || 0))}
-                      </strong>
-                    </div>
-                  )}
                 </div>
-              ) : null}
-            </div>
-          )}
 
-          {/* PP RAP */}
-          <Field label="PP / RAP (Rp)">
-            <input type="number" name="pp_rap" value={form.pp_rap} onChange={handleChange}
-              placeholder="0" min="0" step="1000" style={inputStyle} />
-          </Field>
+                {/* RAP Rujukan */}
+                <Field label="RAP Rujukan">
+                  <select
+                    value={item.rap_item_id ?? '__custom__'}
+                    onChange={e => {
+                      const val = e.target.value
+                      handleSelectRap(item.id, val === '__custom__' ? null : val)
+                    }}
+                    style={{ ...inputStyle, cursor: 'pointer' }}
+                  >
+                    <option value="__custom__" style={{ backgroundColor: '#FFFFFF', color: NAVY }}>+ Item Custom (tanpa link RAP)</option>
+                    {rapItems.map(r => (
+                      <option key={r.id} value={r.id} style={{ backgroundColor: '#FFFFFF', color: NAVY }}>
+                        {r.sub_divisi ? `[${r.sub_divisi}] ` : ''}{r.deskripsi}
+                        {r.total_rap != null ? ` — ${formatRupiah(r.total_rap)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-          {/* Satuan, Volume, Harga Satuan */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-            <Field label="Satuan">
-              <input name="satuan" value={form.satuan} onChange={handleChange}
-                placeholder="m², unit, ls..." style={inputStyle} />
-            </Field>
-            <Field label="Volume">
-              <input type="number" name="volume" value={form.volume} onChange={handleChange}
-                placeholder="0" min="0" step="0.01" style={inputStyle} />
-            </Field>
-            <Field label="Harga Satuan (Rp)">
-              <input type="number" name="harga_satuan" value={form.harga_satuan} onChange={handleChange}
-                placeholder="0" min="0" step="1000" style={inputStyle} />
-            </Field>
-          </div>
+                {/* Saldo RAP info */}
+                {saldo && (
+                  <div style={{
+                    marginTop: '-8px', marginBottom: '16px',
+                    backgroundColor: saldo.saldo <= 0 ? 'rgba(220,38,38,0.07)' : 'rgba(22,163,74,0.07)',
+                    border: `1px solid ${saldo.saldo <= 0 ? 'rgba(220,38,38,0.25)' : 'rgba(22,163,74,0.25)'}`,
+                    borderRadius: '6px', padding: '8px 14px', fontSize: '12px',
+                    display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap',
+                  }}>
+                    <span style={{ color: SECONDARY }}>
+                      RAP: <strong style={{ color: NAVY }}>{formatRupiah(saldo.totalRap)}</strong>
+                      {' · '}
+                      Saldo: <strong style={{ color: saldo.saldo <= 0 ? '#dc2626' : '#166534' }}>
+                        {formatRupiah(saldo.saldo)}
+                      </strong>
+                    </span>
+                    {totalItem > 0 && afterSaldo !== null && (
+                      <span style={{ color: SECONDARY }}>
+                        Setelah ini:{' '}
+                        <strong style={{ color: afterSaldo < 0 ? '#dc2626' : '#166534' }}>
+                          {formatRupiah(afterSaldo)}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                )}
 
-          {/* Deal SPK (auto-computed or override) */}
-          <Field
-            label="Deal SPK (Rp)"
-            hint={!dealTouched && form.volume && form.harga_satuan ? 'Auto-dihitung dari Volume × Harga Satuan. Edit untuk override.' : undefined}
+                {/* Deskripsi item */}
+                <Field label="Deskripsi Item *">
+                  <input
+                    value={item.deskripsi}
+                    onChange={e => updateItem(item.id, { deskripsi: e.target.value })}
+                    placeholder="Deskripsi item pekerjaan..."
+                    style={inputStyle}
+                  />
+                </Field>
+
+                {/* Satuan + Volume + Harga Satuan */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  <Field label="Satuan *">
+                    <input
+                      value={item.satuan}
+                      onChange={e => updateItem(item.id, { satuan: e.target.value })}
+                      placeholder="m², unit, ls..."
+                      style={inputStyle}
+                    />
+                  </Field>
+                  <Field label="Volume *">
+                    <input
+                      type="number"
+                      value={item.volume}
+                      onChange={e => updateItem(item.id, { volume: e.target.value })}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      style={inputStyle}
+                    />
+                  </Field>
+                  <Field label="Harga Satuan (Rp)">
+                    <input
+                      type="number"
+                      value={item.harga_satuan}
+                      onChange={e => updateItem(item.id, { harga_satuan: e.target.value })}
+                      placeholder="0"
+                      min="0"
+                      step="1000"
+                      style={inputStyle}
+                    />
+                  </Field>
+                </div>
+
+                {/* Total Item */}
+                {totalItem > 0 && (
+                  <div style={{
+                    backgroundColor: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.3)',
+                    borderRadius: '8px', padding: '10px 16px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    marginTop: '-4px',
+                  }}>
+                    <span style={{ fontSize: '11px', color: SECONDARY, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>
+                      Total Item
+                    </span>
+                    <span style={{ fontSize: '15px', fontWeight: '700', color: GOLD }}>
+                      {formatRupiah(totalItem)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Item error */}
+                {item.itemError && (
+                  <p style={{ color: '#dc2626', fontSize: '12px', margin: '8px 0 0 0' }}>
+                    {item.itemError}
+                  </p>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Add item button */}
+          <button
+            type="button"
+            onClick={addItem}
+            style={{
+              marginTop: '20px', width: '100%', padding: '11px',
+              backgroundColor: 'rgba(13,46,66,0.04)', color: NAVY,
+              border: `1px dashed rgba(13,46,66,0.3)`, borderRadius: '8px',
+              fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+              letterSpacing: '0.3px',
+            }}
           >
-            <input type="number" name="deal_spk" value={form.deal_spk} onChange={handleChange}
-              placeholder="0" min="0" step="1000" style={inputStyle} />
-          </Field>
+            + Tambah Item
+          </button>
+        </div>
 
-          {/* Computed preview */}
-          {form.volume && form.harga_satuan && (
-            <div style={{
-              backgroundColor: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.4)',
-              borderRadius: '10px', padding: '14px 18px', marginBottom: '24px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <span style={{ fontSize: '12px', color: SECONDARY, letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>
-                Volume × Harga Satuan
-              </span>
-              <span style={{ fontSize: '16px', fontWeight: '700', color: GOLD }}>
-                {formatRupiah(computedDeal)}
-              </span>
-            </div>
-          )}
-
-          {error && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>{error}</p>}
-
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-            <button type="submit" disabled={loading} style={{
-              padding: '12px 28px', backgroundColor: loading ? 'rgba(13,46,66,0.4)' : NAVY,
-              color: '#FAF5EB', border: 'none', borderRadius: '8px', fontSize: '13px',
-              fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer', letterSpacing: '0.5px',
-            }}>
-              {loading ? 'Menyimpan...' : 'Simpan SPK (Draft)'}
-            </button>
-            <button type="button" onClick={() => router.push(`/dashboard/projects/${projectId}?tab=${divisi}`)}
-              style={{ padding: '12px 24px', backgroundColor: '#FFFFFF', color: NAVY,
-                border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
-              Batal
-            </button>
+        {/* ── SECTION TOTAL ─────────────────────────────────────────────────── */}
+        {totalDeal > 0 && (
+          <div style={{
+            backgroundColor: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.5)',
+            borderRadius: '12px', padding: '18px 28px', marginBottom: '20px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: SECONDARY, letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+              Total Deal SPK
+            </span>
+            <span style={{ fontSize: '22px', fontWeight: '800', color: GOLD }}>
+              {formatRupiah(totalDeal)}
+            </span>
           </div>
-        </form>
-      </div>
+        )}
 
-      {/* Override Modal */}
+        {error && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>{error}</p>}
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button type="submit" disabled={loading} style={{
+            padding: '12px 28px', backgroundColor: loading ? 'rgba(13,46,66,0.4)' : NAVY,
+            color: '#FAF5EB', border: 'none', borderRadius: '8px', fontSize: '13px',
+            fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer', letterSpacing: '0.5px',
+          }}>
+            {loading ? 'Menyimpan...' : 'Simpan SPK (Draft)'}
+          </button>
+          <button type="button" onClick={() => router.push(`/dashboard/projects/${projectId}?tab=${divisi}`)}
+            style={{
+              padding: '12px 24px', backgroundColor: '#FFFFFF', color: NAVY,
+              border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '13px', cursor: 'pointer',
+            }}>
+            Batal
+          </button>
+        </div>
+      </form>
+
+      {/* ── OVERRIDE MODAL ────────────────────────────────────────────────── */}
       {showOverrideModal && pendingOverride && (
         <div style={{
           position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
@@ -512,34 +694,36 @@ export default function TambahSpkPage() {
         }}>
           <div style={{
             backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '32px',
-            maxWidth: '520px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            maxWidth: '540px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            maxHeight: '90vh', overflowY: 'auto',
           }}>
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#B45309', margin: '0 0 16px 0' }}>
               ⚠️ Melebihi RAP
             </h2>
+
             <div style={{
               backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.35)',
               borderRadius: '10px', padding: '16px', marginBottom: '20px',
-              fontSize: '14px', color: NAVY, lineHeight: '1.7',
+              fontSize: '13px', color: NAVY, lineHeight: '1.7',
             }}>
-              <p style={{ margin: '0 0 6px 0', fontSize: '13px' }}>
-                Total SPK setelah ini akan melebihi RAP sebesar:
-              </p>
-              <p style={{ margin: '0 0 14px 0', fontSize: '20px', fontWeight: '800', color: '#dc2626' }}>
-                {formatRupiah(pendingOverride.jumlahOver)}{' '}
-                <span style={{ fontSize: '14px', fontWeight: '600' }}>({pendingOverride.persen}%)</span>
-              </p>
-              <div style={{ borderTop: '1px solid rgba(245,158,11,0.3)', paddingTop: '12px', fontSize: '13px', display: 'grid', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: SECONDARY }}>Saldo RAP saat ini:</span>
-                  <strong>{formatRupiah(rapSaldoInfo?.saldo ?? 0)}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: SECONDARY }}>Deal SPK ini:</span>
-                  <strong>{formatRupiah(parseFloat(form.deal_spk) || 0)}</strong>
-                </div>
+              <p style={{ margin: '0 0 12px 0' }}>Item-item berikut melebihi RAP:</p>
+              <ul style={{ margin: '0 0 12px 0', paddingLeft: '18px', display: 'grid', gap: '4px' }}>
+                {pendingOverride.overItems.map((oi, i) => (
+                  <li key={i} style={{ color: '#dc2626', fontWeight: '500' }}>
+                    {oi.deskripsi}{' '}
+                    <span style={{ fontWeight: '400', color: SECONDARY }}>
+                      — Over {formatRupiah(oi.jumlahOver)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div style={{ borderTop: '1px solid rgba(245,158,11,0.3)', paddingTop: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: SECONDARY }}>Total over keseluruhan:</span>
+                <strong style={{ color: '#dc2626', fontSize: '15px' }}>
+                  {formatRupiah(pendingOverride.totalOver)}
+                </strong>
               </div>
-              <p style={{ margin: '12px 0 0 0', fontSize: '12px', color: SECONDARY, fontStyle: 'italic' }}>
+              <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: SECONDARY, fontStyle: 'italic' }}>
                 Untuk melanjutkan, perlu persetujuan Direktur.
               </p>
             </div>
