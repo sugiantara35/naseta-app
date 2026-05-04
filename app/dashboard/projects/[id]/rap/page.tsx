@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import React from 'react'
+import GenerateKerangkaButton from './GenerateKerangkaButton'
 
 const GOLD = '#D4AF37'
 const NAVY = '#0D2E42'
@@ -88,7 +89,7 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
 
   if (projectError || !project) notFound()
 
-  const [{ data: rapData }, { data: spkData }] = await Promise.all([
+  const [{ data: rapData }, { data: spkData }, { data: hargaUpahRaw }] = await Promise.all([
     supabase
       .from('rap_items')
       .select('id, divisi, sub_divisi, deskripsi, satuan, volume, harga_satuan, total_rap')
@@ -100,7 +101,16 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
       .eq('project_id', id)
       .not('rap_item_id', 'is', null)
       .in('status', ['AKTIF', 'SELESAI']),
+    supabase
+      .from('harga_upah')
+      .select('kategori')
+      .in('kategori', ['PERSIAPAN', 'STRUKTUR', 'ARSITEKTUR', 'MEP']),
   ])
+
+  const hargaUpahCounts: Record<string, number> = {}
+  for (const row of hargaUpahRaw ?? []) {
+    hargaUpahCounts[row.kategori] = (hargaUpahCounts[row.kategori] ?? 0) + 1
+  }
 
   const items: RapItem[] = (rapData as RapItem[]) ?? []
   const spkLinks: SpkLink[] = (spkData as SpkLink[]) ?? []
@@ -137,9 +147,12 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
               Rencana Anggaran Pelaksanaan
             </p>
           </div>
-          <code style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: '#7a5c00', padding: '4px 12px', borderRadius: '6px', fontSize: '13px', fontFamily: 'monospace', fontWeight: '600' }}>
-            {project.kode}
-          </code>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <GenerateKerangkaButton projectId={id} counts={hargaUpahCounts} />
+            <code style={{ backgroundColor: 'rgba(212,175,55,0.15)', color: '#7a5c00', padding: '4px 12px', borderRadius: '6px', fontSize: '13px', fontFamily: 'monospace', fontWeight: '600' }}>
+              {project.kode}
+            </code>
+          </div>
         </div>
       </div>
 
