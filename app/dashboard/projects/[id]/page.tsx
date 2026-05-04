@@ -38,10 +38,11 @@ function ProjectStatusBadge({ status }: { status: string }) {
 
 function SpkStatusBadge({ status }: { status: string }) {
   const map: Record<string, React.CSSProperties> = {
-    DRAFT:   { backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' },
-    AKTIF:   { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
-    SELESAI: { backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' },
-    BATAL:   { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' },
+    DRAFT:             { backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' },
+    AKTIF:             { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
+    SELESAI:           { backgroundColor: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' },
+    BATAL:             { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' },
+    MENUNGGU_OVERRIDE: { backgroundColor: 'rgba(245,158,11,0.15)', color: '#B45309', border: '1px solid rgba(245,158,11,0.4)' },
   }
   return (
     <span style={{ ...(map[status] ?? map.DRAFT), padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }}>
