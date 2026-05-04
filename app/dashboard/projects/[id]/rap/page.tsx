@@ -98,7 +98,8 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
       .from('spk')
       .select('rap_item_id, deal_spk')
       .eq('project_id', id)
-      .not('rap_item_id', 'is', null),
+      .not('rap_item_id', 'is', null)
+      .in('status', ['AKTIF', 'SELESAI']),
   ])
 
   const items: RapItem[] = (rapData as RapItem[]) ?? []
