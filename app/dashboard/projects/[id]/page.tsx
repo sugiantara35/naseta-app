@@ -51,6 +51,13 @@ function SpkStatusBadge({ status }: { status: string }) {
   )
 }
 
+type SpkItemRow = {
+  id: string
+  rap_item_id: string | null
+  deskripsi: string
+  total_item: number | null
+}
+
 type SpkRow = {
   id: string
   nomor_spk: string
@@ -64,6 +71,7 @@ type SpkRow = {
   spk_payments: { jumlah: number }[]
   rap_item_id: string | null
   rap_items: { id: string; deskripsi: string; total_rap: number | null } | null
+  spk_items: SpkItemRow[]
 }
 
 type MaterialRow = {
@@ -92,6 +100,7 @@ type DraftSpkRow = {
   deal_spk: number | null
   tanggal_spk: string | null
   vendors: { nama: string } | null
+  spk_items: SpkItemRow[]
 }
 
 const thStyle: React.CSSProperties = {
@@ -114,6 +123,23 @@ const tdStyle: React.CSSProperties = {
 
 function spkTerbayar(spk: SpkRow) {
   return (spk.spk_payments ?? []).reduce((s, p) => s + (p.jumlah ?? 0), 0)
+}
+
+function spkDeal(spk: SpkRow | DraftSpkRow) {
+  const items = spk.spk_items ?? []
+  if (items.length > 0) return items.reduce((s, it) => s + (it.total_item ?? 0), 0)
+  return spk.deal_spk ?? 0
+}
+
+function spkRapLabel(spk: SpkRow) {
+  const items = spk.spk_items ?? []
+  const linked = items.filter(it => it.rap_item_id)
+  if (linked.length === 0) return spk.rap_items?.deskripsi ?? '—'
+  if (linked.length === 1) {
+    const single = linked[0]
+    return single.deskripsi || spk.rap_items?.deskripsi || '—'
+  }
+  return `Multi (${linked.length} item)`
 }
 
 export default async function ProjectDetailPage({
@@ -153,7 +179,7 @@ export default async function ProjectDetailPage({
   if (activeTab === 'APPROVAL') {
     const { data } = await supabase
       .from('spk')
-      .select('id, nomor_spk, deskripsi, divisi, sub_kategori, deal_spk, tanggal_spk, vendors(nama)')
+      .select('id, nomor_spk, deskripsi, divisi, sub_kategori, deal_spk, tanggal_spk, vendors(nama), spk_items(id, rap_item_id, deskripsi, total_item)')
       .eq('project_id', id)
       .eq('status', 'DRAFT')
       .order('created_at', { ascending: true })
@@ -161,7 +187,7 @@ export default async function ProjectDetailPage({
   } else if (activeTab === 'REKAPITULASI') {
     const { data } = await supabase
       .from('spk')
-      .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap)')
+      .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap), spk_items(id, rap_item_id, deskripsi, total_item)')
       .eq('project_id', id)
       .in('status', ['AKTIF', 'SELESAI'])
       .order('created_at', { ascending: true })
@@ -184,7 +210,7 @@ export default async function ProjectDetailPage({
     const [{ data: spkData }, { data: rapData }] = await Promise.all([
       supabase
         .from('spk')
-        .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap)')
+        .select('id, nomor_spk, deskripsi, divisi, pp_rap, deal_spk, status, tanggal_spk, vendors(nama), spk_payments(jumlah), rap_item_id, rap_items(id, deskripsi, total_rap), spk_items(id, rap_item_id, deskripsi, total_item)')
         .eq('project_id', id)
         .eq('divisi', activeTab)
         .in('status', ['AKTIF', 'SELESAI'])
@@ -328,7 +354,7 @@ export default async function ProjectDetailPage({
                       </p>
                       <div style={{ fontSize: '12px', color: SECONDARY, display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                         {spk.vendors?.nama && <span>Vendor: {spk.vendors.nama}</span>}
-                        {spk.deal_spk != null && <span>Deal: {formatRupiah(spk.deal_spk)}</span>}
+                        {spkDeal(spk) > 0 && <span>Deal: {formatRupiah(spkDeal(spk))}</span>}
                         {spk.tanggal_spk && <span>{spk.tanggal_spk}</span>}
                       </div>
                     </div>
@@ -346,7 +372,7 @@ export default async function ProjectDetailPage({
       {/* ── REKAPITULASI ── */}
       {activeTab === 'REKAPITULASI' && (() => {
         const grandPpRap    = allSpk.reduce((s, spk) => s + (spk.pp_rap ?? 0), 0)
-        const grandDeal     = allSpk.reduce((s, spk) => s + (spk.deal_spk ?? 0), 0)
+        const grandDeal     = allSpk.reduce((s, spk) => s + spkDeal(spk), 0)
         const grandTerbayar = allSpk.reduce((s, spk) => s + spkTerbayar(spk), 0)
         const grandSaldo    = grandDeal - grandTerbayar
 
@@ -354,7 +380,7 @@ export default async function ProjectDetailPage({
           <div>
             {rekapByDivisi.map(({ divisi, nomor, rows }) => {
               const subPpRap    = rows.reduce((s, spk) => s + (spk.pp_rap ?? 0), 0)
-              const subDeal     = rows.reduce((s, spk) => s + (spk.deal_spk ?? 0), 0)
+              const subDeal     = rows.reduce((s, spk) => s + spkDeal(spk), 0)
               const subTerbayar = rows.reduce((s, spk) => s + spkTerbayar(spk), 0)
               const subSaldo    = subDeal - subTerbayar
 
@@ -392,17 +418,18 @@ export default async function ProjectDetailPage({
                           </tr>
                         ) : rows.map((spk, i) => {
                           const terbayar = spkTerbayar(spk)
-                          const saldo = (spk.deal_spk ?? 0) - terbayar
+                          const deal = spkDeal(spk)
+                          const saldo = deal - terbayar
                           return (
                             <tr key={spk.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
                               <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '12px', color: '#7a5c00', fontWeight: '600' }}>{spk.nomor_spk}</td>
                               <td style={{ ...tdStyle, maxWidth: '200px' }}>{spk.deskripsi}</td>
                               <td style={{ ...tdStyle, maxWidth: '180px', color: SECONDARY, fontSize: '12px', fontStyle: 'italic' }}>
-                                {spk.rap_items?.deskripsi ?? '—'}
+                                {spkRapLabel(spk)}
                               </td>
                               <td style={{ ...tdStyle, color: SECONDARY }}>{spk.vendors?.nama ?? '—'}</td>
                               <td style={{ ...tdStyle, color: SECONDARY }}>{spk.pp_rap != null ? formatRupiah(spk.pp_rap) : '—'}</td>
-                              <td style={tdStyle}>{spk.deal_spk != null ? formatRupiah(spk.deal_spk) : '—'}</td>
+                              <td style={tdStyle}>{deal > 0 ? formatRupiah(deal) : '—'}</td>
                               <td style={{ ...tdStyle, color: '#166534', fontWeight: '500' }}>{formatRupiah(terbayar)}</td>
                               <td style={{ ...tdStyle, color: saldo < 0 ? '#dc2626' : '#166534', fontWeight: '600' }}>{formatRupiah(saldo)}</td>
                             </tr>
@@ -453,7 +480,9 @@ export default async function ProjectDetailPage({
             {rapItemsList.length > 0 && (() => {
               const grandRapTotal = rapItemsList.reduce((s, r) => s + (r.total_rap ?? 0), 0)
               const grandRapTerpakai = rapItemsList.reduce((s, r) => {
-                const terpakai = allSpk.filter(spk => spk.rap_item_id === r.id).reduce((a, spk) => a + (spk.deal_spk ?? 0), 0)
+                const terpakai = allSpk.reduce((a, spk) => {
+                  return a + (spk.spk_items ?? []).filter(it => it.rap_item_id === r.id).reduce((x, it) => x + (it.total_item ?? 0), 0)
+                }, 0)
                 return s + terpakai
               }, 0)
               const grandRapSaldo = grandRapTotal - grandRapTerpakai
@@ -474,9 +503,9 @@ export default async function ProjectDetailPage({
                       </thead>
                       <tbody>
                         {rapItemsList.map((rap, i) => {
-                          const terpakai = allSpk
-                            .filter(spk => spk.rap_item_id === rap.id)
-                            .reduce((a, spk) => a + (spk.deal_spk ?? 0), 0)
+                          const terpakai = allSpk.reduce((a, spk) => {
+                            return a + (spk.spk_items ?? []).filter(it => it.rap_item_id === rap.id).reduce((x, it) => x + (it.total_item ?? 0), 0)
+                          }, 0)
                           const saldoRap = (rap.total_rap ?? 0) - terpakai
                           return (
                             <tr key={rap.id} style={{ borderBottom: i < rapItemsList.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
@@ -576,14 +605,15 @@ export default async function ProjectDetailPage({
                   </td></tr>
                 ) : spkList.map((spk, i) => {
                   const terbayar = spkTerbayar(spk)
-                  const saldo = (spk.deal_spk ?? 0) - terbayar
+                  const deal = spkDeal(spk)
+                  const saldo = deal - terbayar
                   return (
                     <tr key={spk.id} style={{ borderBottom: i < spkList.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                       <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '12px', color: '#7a5c00', fontWeight: '600' }}>{spk.nomor_spk}</td>
                       <td style={{ ...tdStyle, maxWidth: '200px' }}>{spk.deskripsi}</td>
                       <td style={{ ...tdStyle, color: SECONDARY }}>{spk.vendors?.nama ?? '—'}</td>
                       <td style={{ ...tdStyle, color: SECONDARY }}>{spk.pp_rap != null ? formatRupiah(spk.pp_rap) : '—'}</td>
-                      <td style={{ ...tdStyle, fontWeight: '600' }}>{spk.deal_spk != null ? formatRupiah(spk.deal_spk) : '—'}</td>
+                      <td style={{ ...tdStyle, fontWeight: '600' }}>{deal > 0 ? formatRupiah(deal) : '—'}</td>
                       <td style={{ ...tdStyle, color: '#166534', fontWeight: '500' }}>{formatRupiah(terbayar)}</td>
                       <td style={{ ...tdStyle, color: saldo < 0 ? '#dc2626' : '#166534', fontWeight: '600' }}>{formatRupiah(saldo)}</td>
                       <td style={tdStyle}><SpkStatusBadge status={spk.status} /></td>

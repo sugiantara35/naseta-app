@@ -36,7 +36,7 @@ type RapItem = {
   total_rap: number | null
 }
 
-type SpkLink = { rap_item_id: string | null; deal_spk: number | null }
+type SpkItemLink = { rap_item_id: string | null; total_item: number | null }
 
 function RapStatusBadge({ saldo, totalRap }: { saldo: number; totalRap: number }) {
   const pct = totalRap > 0 ? saldo / totalRap : (saldo >= 0 ? 1 : -1)
@@ -96,11 +96,11 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
       .eq('project_id', id)
       .order('created_at', { ascending: true }),
     supabase
-      .from('spk')
-      .select('rap_item_id, deal_spk')
-      .eq('project_id', id)
-      .not('rap_item_id', 'is', null)
-      .in('status', ['AKTIF', 'SELESAI']),
+      .from('spk_items')
+      .select('rap_item_id, total_item, spk:spk_id!inner(project_id, status)')
+      .eq('spk.project_id', id)
+      .in('spk.status', ['AKTIF', 'SELESAI'])
+      .not('rap_item_id', 'is', null),
     supabase
       .from('harga_upah')
       .select('kategori')
@@ -113,13 +113,13 @@ export default async function RapPage({ params }: { params: Promise<{ id: string
   }
 
   const items: RapItem[] = (rapData as RapItem[]) ?? []
-  const spkLinks: SpkLink[] = (spkData as SpkLink[]) ?? []
+  const spkItemLinks: SpkItemLink[] = (spkData as unknown as SpkItemLink[]) ?? []
   const grandTotal = items.reduce((s, i) => s + (i.total_rap ?? 0), 0)
 
   function spkTerbitForItem(itemId: string) {
-    return spkLinks
+    return spkItemLinks
       .filter(s => s.rap_item_id === itemId)
-      .reduce((sum, s) => sum + (s.deal_spk ?? 0), 0)
+      .reduce((sum, s) => sum + (s.total_item ?? 0), 0)
   }
 
   async function deleteRapItemAction(formData: FormData) {

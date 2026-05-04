@@ -45,6 +45,16 @@ type PengajuanItem = {
   created_at: string
 }
 
+type SpkItem = {
+  id: string
+  rap_item_id: string | null
+  deskripsi: string
+  satuan: string | null
+  volume: number | null
+  harga_satuan: number | null
+  total_item: number | null
+}
+
 type SpkDetail = {
   id: string
   nomor_spk: string
@@ -58,6 +68,7 @@ type SpkDetail = {
   vendors: { nama: string } | null
   spk_payments: Payment[]
   pengajuan: PengajuanItem[]
+  spk_items: SpkItem[]
 }
 
 const PENGAJUAN_BADGE: Record<string, React.CSSProperties> = {
@@ -116,7 +127,7 @@ export default function SpkDetailPage() {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('spk')
-      .select('*, vendors(nama), spk_payments(*)')
+      .select('*, vendors(nama), spk_payments(*), spk_items(id, rap_item_id, deskripsi, satuan, volume, harga_satuan, total_item)')
       .eq('id', spkId)
       .order('created_at', { ascending: false, referencedTable: 'spk_payments' })
       .single()
@@ -192,7 +203,10 @@ export default function SpkDetailPage() {
   if (error || !spk) return <div style={{ color: '#dc2626', fontSize: '14px', paddingTop: '40px' }}>{error}</div>
 
   const terbayar = spk.spk_payments.reduce((s, p) => s + (p.jumlah ?? 0), 0)
-  const saldo = (spk.deal_spk ?? 0) - terbayar
+  const totalDeal = (spk.spk_items ?? []).length > 0
+    ? (spk.spk_items ?? []).reduce((s, it) => s + (it.total_item ?? 0), 0)
+    : (spk.deal_spk ?? 0)
+  const saldo = totalDeal - terbayar
 
   const thStyle: React.CSSProperties = {
     padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '700',
@@ -231,7 +245,7 @@ export default function SpkDetailPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
           {[
             { label: 'PP / RAP', value: spk.pp_rap != null ? formatRupiah(spk.pp_rap) : '—', color: NAVY },
-            { label: 'Deal SPK', value: spk.deal_spk != null ? formatRupiah(spk.deal_spk) : '—', color: NAVY },
+            { label: 'Deal SPK', value: totalDeal > 0 ? formatRupiah(totalDeal) : '—', color: NAVY },
             { label: 'Terbayar', value: formatRupiah(terbayar), color: '#166534' },
             { label: 'Saldo', value: formatRupiah(saldo), color: saldo < 0 ? '#dc2626' : '#166534' },
           ].map(({ label, value, color }) => (
@@ -242,6 +256,47 @@ export default function SpkDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* Detail Item */}
+      {(spk.spk_items ?? []).length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: '600', color: NAVY, margin: '0 0 14px 0' }}>Detail Item</h2>
+          <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', overflowX: 'auto', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${BORDER}`, backgroundColor: '#F5F0E8' }}>
+                  {['Deskripsi', 'Satuan', 'Volume', 'Harga Satuan', 'Total'].map(col => (
+                    <th key={col} style={thStyle}>{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(spk.spk_items ?? []).map((item, i) => {
+                  const total = item.total_item ?? ((item.volume ?? 0) * (item.harga_satuan ?? 0))
+                  return (
+                    <tr key={item.id} style={{ borderBottom: i < (spk.spk_items ?? []).length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                      <td style={{ ...tdStyle, maxWidth: '260px' }}>
+                        <span style={{ color: '#7a5c00', fontFamily: 'monospace', fontSize: '11px', marginRight: '6px' }}>
+                          {item.rap_item_id ? '◆' : '◇'}
+                        </span>
+                        {item.deskripsi}
+                      </td>
+                      <td style={{ ...tdStyle, color: SECONDARY }}>{item.satuan ?? '—'}</td>
+                      <td style={{ ...tdStyle, color: SECONDARY }}>{item.volume ?? '—'}</td>
+                      <td style={{ ...tdStyle, color: SECONDARY }}>{item.harga_satuan != null ? formatRupiah(item.harga_satuan) : '—'}</td>
+                      <td style={{ ...tdStyle, fontWeight: '600', color: NAVY }}>{total > 0 ? formatRupiah(total) : '—'}</td>
+                    </tr>
+                  )
+                })}
+                <tr style={{ backgroundColor: 'rgba(212,175,55,0.08)', borderTop: `1px solid ${BORDER}` }}>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: '700', fontSize: '12px', color: NAVY, letterSpacing: '0.5px' }}>TOTAL</td>
+                  <td style={{ ...tdStyle, fontWeight: '700', color: NAVY }}>{formatRupiah(totalDeal)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Payment History */}
       <div style={{ marginBottom: '24px' }}>
