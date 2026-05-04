@@ -46,6 +46,11 @@ type PengajuanRow = {
   spk: { nomor_spk: string; projects: { nama: string } | null } | null
 }
 
+type OverridePendingRow = {
+  id: string; jumlah_over: number; alasan_request: string; created_at: string
+  spk: { nomor_spk: string; projects: { id: string; nama: string } | null } | null
+}
+
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
 
@@ -91,16 +96,31 @@ export default async function DashboardPage() {
   }
 
   const canSeeApproval = ['ADMIN', 'SITE_MANAGER', 'DIREKTUR'].includes(userRole)
+  const canSeeOverride = ['ADMIN', 'DIREKTUR'].includes(userRole)
+
   let draftSpkList: DraftSpk[] = []
-  if (canSeeApproval) {
-    const { data } = await supabase
-      .from('spk')
-      .select('id, nomor_spk, divisi, deal_spk, projects(id, nama), vendors(nama)')
-      .eq('status', 'DRAFT')
-      .order('created_at', { ascending: false })
-      .limit(5)
-    draftSpkList = (data as unknown as DraftSpk[]) ?? []
-  }
+  let overridePendingList: OverridePendingRow[] = []
+
+  await Promise.all([
+    canSeeApproval
+      ? supabase
+          .from('spk')
+          .select('id, nomor_spk, divisi, deal_spk, projects(id, nama), vendors(nama)')
+          .eq('status', 'DRAFT')
+          .order('created_at', { ascending: false })
+          .limit(5)
+          .then(({ data }) => { draftSpkList = (data as unknown as DraftSpk[]) ?? [] })
+      : Promise.resolve(),
+    canSeeOverride
+      ? supabase
+          .from('rap_overrides')
+          .select('id, jumlah_over, alasan_request, created_at, spk:spk_id(nomor_spk, projects:project_id(id, nama))')
+          .eq('status', 'PENDING')
+          .order('created_at', { ascending: false })
+          .limit(5)
+          .then(({ data }) => { overridePendingList = (data as unknown as OverridePendingRow[]) ?? [] })
+      : Promise.resolve(),
+  ])
 
   const { data: pengajuanTerbaru } = await supabase
     .from('pengajuan_pembayaran')
@@ -277,6 +297,73 @@ export default async function DashboardPage() {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Section 3b — Override Menunggu Persetujuan (ADMIN/DIREKTUR only) */}
+      {canSeeOverride && (
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '700', color: NAVY, margin: 0, letterSpacing: '0.3px' }}>
+              Override Menunggu Persetujuan
+            </h2>
+            <Link href="/dashboard/override" style={{ fontSize: '12px', color: SECONDARY, textDecoration: 'none' }}>
+              Lihat semua →
+            </Link>
+          </div>
+          <div style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(13,46,66,0.06)' }}>
+            {overridePendingList.length === 0 ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: SECONDARY, fontSize: '13px' }}>
+                Tidak ada request override pending
+              </div>
+            ) : (
+              <div>
+                {overridePendingList.map((ov, i) => (
+                  <Link
+                    key={ov.id}
+                    href="/dashboard/override"
+                    style={{
+                      display: 'block', textDecoration: 'none',
+                      padding: '16px 20px',
+                      borderBottom: i < overridePendingList.length - 1 ? `1px solid ${BORDER}` : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: '200px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <code style={{
+                            backgroundColor: 'rgba(212,175,55,0.15)', color: '#7a5c00',
+                            padding: '2px 8px', borderRadius: '4px', fontSize: '12px',
+                            fontFamily: 'monospace', fontWeight: '600',
+                          }}>
+                            {ov.spk?.nomor_spk ?? '—'}
+                          </code>
+                          {ov.spk?.projects?.nama && (
+                            <span style={{ fontSize: '13px', color: NAVY, fontWeight: '500' }}>
+                              {ov.spk.projects.nama}
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '12px', color: SECONDARY, margin: 0 }}>
+                          {ov.alasan_request.length > 80
+                            ? ov.alasan_request.slice(0, 80) + '...'
+                            : ov.alasan_request}
+                        </p>
+                      </div>
+                      <span style={{
+                        backgroundColor: 'rgba(245,158,11,0.15)', color: '#B45309',
+                        border: '1px solid rgba(245,158,11,0.4)',
+                        borderRadius: '8px', padding: '4px 12px',
+                        fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap',
+                      }}>
+                        Over {formatRupiah(ov.jumlah_over)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
         </div>
